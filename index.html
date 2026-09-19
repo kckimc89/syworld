@@ -598,8 +598,8 @@ async function resolveWikipediaEntity(name,subjectId,section,source='discover'){
     const ident=identityScore(name,title);if(!ident)continue;
     const subj=subjectEvidence(subjectId,title+' '+desc),cat=categoryEvidence(section,title+' '+desc);
     if(tooBroadCandidate(section,title,subjectId))continue;
-    if(!conservativeTypeCheck(section,title,desc,source))continue;
-    // 자동발견 후보는 주제 관련성까지 확인한다. seed는 명백한 모순이 없으면 과잉탈락시키지 않는다.
+    // Engine 9: 설명 문구만으로 후보를 탈락시키지 않는다.
+    // 자동발견 후보만 주제 관련성을 요구하고, seed는 Entity 구조 검증 단계까지 보존한다.
     if(source!=='seed' && subj<1)continue;
     const photo=page.thumbnail?.source||page.original?.source||'';if(!photo)continue;
     const score=ident+subj*4+cat*2+(source==='seed'?3:0);
@@ -963,21 +963,26 @@ const TYPE_NEGATIVE={
  art:['human','person','painter','writer','singer','actor','museum','city','municipality','사람','화가','작가','가수','배우','박물관','도시']
 };
 async function structuredCategoryCheck(section,verified){
- const ev=await wikidataTypeEvidence(verified.entityId);if(!ev||!ev.typeText)return {ok:true,reason:'no-structured-type'};
+ const ev=await wikidataTypeEvidence(verified.entityId);
+ // 구조정보가 없거나 애매하면 좋은 후보를 잃지 않기 위해 보존한다.
+ if(!ev||!ev.typeText)return {ok:true,reason:'uncertain-preserve'};
  const t=ev.typeText;
- const pos=(TYPE_POSITIVE[section]||[]).some(w=>t.includes(w));
- const neg=(TYPE_NEGATIVE[section]||[]).some(w=>t.includes(w));
- // 사람 카테고리는 Q5(인간)를 가장 강한 구조 증거로 사용한다.
+ const neg=(TYPE_NEGATIVE[section]||[]).some(w=>t.includes(String(w).toLowerCase()));
  const human=ev.instanceIds.includes('Q5');
+ // 사람 계열은 '사람이 아님'이 구조적으로 분명하거나, 다른 직업군임이 명백할 때만 제외한다.
  if(['singers','athletes','people'].includes(section)){
-   if(ev.instanceIds.length&& !human && neg)return {ok:false,reason:'structured-mismatch'};
-   if(human && section==='people')return {ok:true,reason:'human'};
-   if(human && pos)return {ok:true,reason:'human-occupation'};
-   if(neg)return {ok:false,reason:'structured-mismatch'};
+   if(section==='people' && human)return {ok:true,reason:'human'};
+   if(human){
+     if(section==='singers' && /athlete|football|tennis|player|운동선수|축구 선수|테니스 선수/.test(t))return {ok:false,reason:'clear-wrong-human-type'};
+     if(section==='athletes' && /singer|musician|composer|writer|painter|가수|음악가|작곡가|작가|화가/.test(t))return {ok:false,reason:'clear-wrong-human-type'};
+     return {ok:true,reason:'human-preserve'};
+   }
+   if(neg)return {ok:false,reason:'clear-structured-mismatch'};
    return {ok:true,reason:'uncertain-preserve'};
  }
- if(neg&&!pos)return {ok:false,reason:'structured-mismatch'};
- return {ok:true,reason:pos?'structured-match':'uncertain-preserve'};
+ // 비사람 카테고리도 '다른 종류'라는 구조 증거가 명백할 때만 제외한다.
+ if(neg)return {ok:false,reason:'clear-structured-mismatch'};
+ return {ok:true,reason:'structured-preserve'};
 }
 async function verifyCandidateTarget(section,target){
  const name=typeof target==='string'?target:target.name, source=typeof target==='string'?'discover':(target.source||'discover');
@@ -1038,14 +1043,18 @@ async function previewCandidate(s,target,box){
  }catch(e){if(box.dataset.previewToken===token)box.innerHTML='<div class="preview-card"><b>확인 중 오류가 있었습니다.</b><p>다른 후보를 선택해 주세요.</p></div>';}
 }
 const CANDIDATE_FIRST_SHOW=15;
+const CANDIDATE_RENDER_TOKEN={};
 async function renderCandidates(s,host){
- const targets=await discoverCandidateTargets(COUNTRY,s);if(!targets.length)return;
- const active=getCustom(s),wrap=document.createElement('div');wrap.className='candidate-box';
- wrap.innerHTML=`<h3>✨ 추천할 만한 항목</h3><p class="note">사진·설명이 확정된 Entity의 구조화된 종류와 직업까지 확인합니다. 후보는 한 번 찾으면 그대로 유지하며, 항목을 추가해도 다시 검색하지 않습니다.</p><div class="candidate-legend">🪄 좋은 후보를 찾고 있어요…</div><div class="candidate-chips"></div><div class="candidate-more"></div><div class="candidate-preview"></div>`;
- host.parentElement.appendChild(wrap);const chips=wrap.querySelector('.candidate-chips'),more=wrap.querySelector('.candidate-more'),legend=wrap.querySelector('.candidate-legend'),pv=wrap.querySelector('.candidate-preview');
+ const token=(CANDIDATE_RENDER_TOKEN[s]||0)+1;CANDIDATE_RENDER_TOKEN[s]=token;
+ // 카테고리당 추천영역은 언제나 하나만 존재한다. 이전 비동기 렌더가 남긴 중복도 제거한다.
+ host.parentElement.querySelectorAll('.candidate-box[data-section="'+s+'"]').forEach(x=>x.remove());
+ const targets=await discoverCandidateTargets(COUNTRY,s);if(!targets.length||CANDIDATE_RENDER_TOKEN[s]!==token)return;
+ const active=getCustom(s),wrap=document.createElement('div');wrap.className='candidate-box';wrap.dataset.section=s;
+ wrap.innerHTML=`<h3>✨ 추천할 만한 항목</h3><p class="note">사진·설명은 같은 Entity로 확정하고, 카테고리가 명백히 틀린 경우만 제외합니다. 후보는 한 번 찾으면 그대로 유지하며, 항목을 추가해도 다시 검색하지 않습니다.</p><div class="candidate-legend">🪄 좋은 후보를 찾고 있어요…</div><div class="candidate-chips"></div><div class="candidate-more"></div><div class="candidate-preview"></div>`;
+ if(CANDIDATE_RENDER_TOKEN[s]!==token)return;host.parentElement.appendChild(wrap);const chips=wrap.querySelector('.candidate-chips'),more=wrap.querySelector('.candidate-more'),legend=wrap.querySelector('.candidate-legend'),pv=wrap.querySelector('.candidate-preview');
  let checked=0;const good=[];
  for(let i=0;i<targets.length;i+=4){
-  if(!wrap.isConnected)return;
+  if(!wrap.isConnected||CANDIDATE_RENDER_TOKEN[s]!==token)return;
   const batch=targets.slice(i,i+4);
   const results=await Promise.all(batch.map(async t=>{try{return [t,await verifyCandidateTarget(s,t)]}catch(e){return [t,null]}}));
   for(const [t,v] of results){checked++;if(!v||!v.photo)continue;
@@ -1063,10 +1072,10 @@ async function renderCandidates(s,host){
 
 
 function updateCandidateAddedState(s){
- const active=getCustom(s);document.querySelectorAll('#'+s+'List ~ .candidate-box .candidate-chip[data-name]').forEach(b=>{const added=hasIdentity(b.dataset.name,active);b.disabled=added;b.classList.toggle('added',added);b.classList.toggle('available',!added);});
+ const active=getCustom(s);document.querySelectorAll('.candidate-box[data-section="'+s+'"] .candidate-chip[data-name]').forEach(b=>{const added=hasIdentity(b.dataset.name,active);b.disabled=added;b.classList.toggle('added',added);b.classList.toggle('available',!added);});
 }
 async function renderSection(s,opts={}){
- const el=document.getElementById(s+'List'); if(!opts.preserveCandidates)el.parentElement.querySelectorAll('.candidate-box').forEach(x=>x.remove());
+ const el=document.getElementById(s+'List'); if(!opts.preserveCandidates){CANDIDATE_RENDER_TOKEN[s]=(CANDIDATE_RENDER_TOKEN[s]||0)+1;el.parentElement.querySelectorAll('.candidate-box[data-section="'+s+'"], .candidate-box:not([data-section])').forEach(x=>x.remove());}
  // 요술방망이 엔진 2는 사전등록 기본카드 없이 아이가 추가한 카드만 표시합니다.
  const merged=[...getCustom(s)]; const arr=[]; for(const x of merged){if(!hasIdentity(x.name,arr))arr.push(x)}
  el.innerHTML=''; const deletedNamesEl=document.getElementById(s+'DeletedNames'); if(deletedNamesEl){const ds=getDeletedBase(s).filter(n=>!hasIdentity(n,arr));deletedNamesEl.innerHTML=ds.length?`<b>↩ 전에 삭제한 항목</b> · `+ds.map(n=>`<button class="candidate-chip deleted-retry" data-name="${esc(n)}">${esc(n)}</button>`).join(' '):'';deletedNamesEl.querySelectorAll?.('.deleted-retry').forEach(b=>b.onclick=()=>addItem(s,b.dataset.name));}
