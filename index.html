@@ -395,7 +395,7 @@ function openCountry(code){COUNTRY=code;let c=countries[code];document.getElemen
 document.getElementById('backBtn').onclick=()=>{document.getElementById('detail').classList.add('hidden');document.getElementById('home').classList.remove('hidden');document.getElementById('nav').classList.add('hidden');document.getElementById('backBtn').classList.add('hidden');document.getElementById('countryTitle').textContent='';window.scrollTo(0,0)};
 // ===== 요술방망이 엔진 2 테스트용: 삭제 PIN 일시 중지 =====
 function requireDeletePin(){ return true; }
-const DATA_NS='magic_engine4_';
+const DATA_NS='magic_engine5_';
 function key(section){return `${DATA_NS}custom_${COUNTRY}_${section}`}
 function editKey(s,id){return `${DATA_NS}edit_${COUNTRY}_${s}_${id}`}
 function confirmedDescKey(country,s,id){return `${DATA_NS}confirmed_${country}_${s}_${id}`}
@@ -507,22 +507,59 @@ async function discoverMet(subjectId,section,limit=18){
  return out;
 }
 async function discoverCandidateTargets(subjectId,section){
+ // Engine 5: 발견과 확정을 분리한다. 기존 콘텐츠 팩은 넉넉한 검색대상 원천일 뿐이며,
+ // 실제 후보가 되려면 아래의 공통 Entity 확정 단계를 반드시 통과해야 한다.
  const seed=[...new Set(CANDIDATES[subjectId]?.[section]||[])].map(name=>({name,source:'seed'}));
- const jobs=[discoverWikipedia(subjectId,section,18)];
- if(sourceEnabled('inaturalist',section))jobs.push(discoverINaturalist(subjectId,section,16));
- if(sourceEnabled('metmuseum',section))jobs.push(discoverMet(subjectId,section,12));
- const found=(await Promise.all(jobs)).flat(); const seen=new Set(),out=[];
- // 실제 검색으로 발견한 대상을 먼저, 기존 목록은 부족할 때만 보조 후보로 사용한다.
- for(const x of [...seed,...found]){const n=candidateDisplayName(x.name),k=normalizeItemName(n);if(!n||!k||seen.has(k))continue;seen.add(k);out.push({...x,name:n});}
- return out.slice(0,40);
+ let found=[];
+ try{found=await discoverWikipedia(subjectId,section,24)}catch(e){}
+ const seen=new Set(),out=[];
+ // 안정성을 위해 현재는 사람이 고른 원천목록을 먼저 검사하고, 자동발견 후보를 뒤에 붙인다.
+ // 어느 쪽이든 같은 Entity 검증기를 거친다.
+ for(const x of [...seed,...found]){
+   const n=candidateDisplayName(x.name),k=normalizeItemName(n);
+   if(!n||!k||seen.has(k))continue;seen.add(k);out.push({...x,name:n});
+ }
+ return out.slice(0,48);
 }
-async function iNatPhoto(name){try{const r=await fetch('https://api.inaturalist.org/v1/taxa?q='+encodeURIComponent(name)+'&per_page=5&order=desc&order_by=observations_count');if(!r.ok)return'';const j=await r.json();for(const x of j.results||[]){const u=x.default_photo?.medium_url||x.default_photo?.url;if(u)return u;}}catch(e){}return'';}
-async function metPhoto(name){try{const r=await fetch('https://collectionapi.metmuseum.org/public/collection/v1/search?hasImages=true&q='+encodeURIComponent(name));if(!r.ok)return'';const j=await r.json();for(const id of (j.objectIDs||[]).slice(0,5)){try{const rr=await fetch('https://collectionapi.metmuseum.org/public/collection/v1/objects/'+id);if(!rr.ok)continue;const x=await rr.json();if(x.primaryImageSmall)return x.primaryImageSmall;}catch(e){}}}catch(e){}return'';}
-async function multiSourcePhoto(name,subjectId,section){
- // 분야별 전문 자료원을 먼저 확인하고, 범용 Wikimedia/Wikipedia 사진 검색으로 보완한다.
- if(section==='animals'){const u=await iNatPhoto(name);if(u)return {url:u,source:'iNaturalist'};}
- if(section==='art'){const u=await metPhoto(name);if(u)return {url:u,source:'The Met Collection'};}
- const u=await autoPhoto(name,subjectId,section);return u?{url:u,source:'Wikimedia/Wikipedia'}:null;
+
+// ===== Engine 5: Entity-first resolver =====
+// 설명과 사진을 따로 찾지 않는다. 하나의 Wikipedia pageid/Wikidata id를 먼저 확정하고
+// 그 동일 페이지에서 제목·설명·대표사진을 한 묶음으로 가져온다.
+function categoryEvidence(section,text){
+ const r=CATEGORY_RULES[section]||{ko:[],en:[]}; const t=String(text||'').toLowerCase();
+ return [...r.ko,...r.en].reduce((n,w)=>n+(t.includes(String(w).toLowerCase())?1:0),0);
+}
+function subjectEvidence(subjectId,text){
+ const p=subjectProfile(subjectId),t=String(text||'').toLowerCase();
+ return p.aliases.reduce((n,w)=>n+(t.includes(String(w).toLowerCase())?1:0),0);
+}
+function identityScore(wanted,title){
+ const a=normalizeItemName(wanted),b=normalizeItemName(title);if(!a||!b)return 0;
+ if(a===b)return 20;if(a.includes(b)||b.includes(a))return 12;return 0;
+}
+async function resolveWikipediaEntity(name,subjectId,section,source='discover'){
+ const p=subjectProfile(subjectId), queries=[name,`${name} ${p.label}`]; let best=null;
+ for(const q of queries){
+  try{
+   const u='https://ko.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch='+encodeURIComponent(q)+'&gsrlimit=7&prop=extracts|pageimages|pageprops&exintro=1&explaintext=1&piprop=thumbnail|original&pithumbsize=700&format=json&origin=*';
+   const r=await fetch(u);if(!r.ok)continue;const j=await r.json();
+   for(const page of Object.values(j.query?.pages||{})){
+    const title=page.title||'',desc=stripHtml(page.extract||'');if(desc.length<45||!isMostlyKorean(desc))continue;
+    const ident=identityScore(name,title);if(!ident)continue;
+    const subj=subjectEvidence(subjectId,title+' '+desc),cat=categoryEvidence(section,title+' '+desc);
+    // 자동발견 결과는 주제와 카테고리 증거를 모두 요구한다.
+    // 콘텐츠 팩의 검색대상도 정체성은 반드시 일치해야 하며, 최소한 주제 또는 카테고리 증거가 있어야 한다.
+    if(source!=='seed' && (subj<1||cat<1))continue;
+    if(source==='seed' && subj<1 && cat<1)continue;
+    const photo=page.thumbnail?.source||page.original?.source||'';if(!photo)continue;
+    const score=ident+subj*4+cat*3;
+    const entity={entityId:page.pageprops?.wikibase_item||('wikipedia:'+page.pageid),pageId:page.pageid,title,displayName:name,desc:desc.split(/(?<=[.!?。！？])\s+/).slice(0,4).join(' '),photo,score,source:'Wikipedia'};
+    if(!best||score>best.score)best=entity;
+   }
+  }catch(e){}
+  if(best&&best.score>=24)break;
+ }
+ return best;
 }
 const CANDIDATES={
  ES:{
@@ -838,50 +875,46 @@ async function genericDescription(name,subjectId,section){
 }
 const CANDIDATE_CHECK_CACHE=new Map();
 const CANDIDATE_TARGET=8;
-// 범용 후보 품질검사: 특정 이름에 대한 예외 없이 설명과 대표사진을 함께 검사합니다.
-// 추천후보는 사진까지 확보된 항목을 우선 통과시키며, 사진 없음은 직접추가/삭제복구의 안전장치로만 허용합니다.
-async function verifyCandidateOnce(section,name){
+async function verifyCandidateTarget(section,target){
+ const name=typeof target==='string'?target:target.name, source=typeof target==='string'?'discover':(target.source||'discover');
  const k=COUNTRY+'|'+section+'|'+normalizeItemName(name);
  if(CANDIDATE_CHECK_CACHE.has(k))return CANDIDATE_CHECK_CACHE.get(k);
- const p=(async()=>{
-   const d=(await exactDescription(name,COUNTRY,section))||(await genericDescription(name,COUNTRY,section));
-   if(!d)return null;
-   const ph=await multiSourcePhoto(name,COUNTRY,section);
-   if(!ph)return {name,desc:d.desc,photo:'',quality:'text-only',sources:['Wikipedia']};
-   return {name,desc:d.desc,photo:ph.url,quality:'recommended',sources:['Wikipedia',ph.source]};
- })();
- CANDIDATE_CHECK_CACHE.set(k,p);return p;
+ const promise=(async()=>{
+   const e=await resolveWikipediaEntity(name,COUNTRY,section,source);if(!e)return null;
+   // 카드 한 장의 모든 핵심 정보는 같은 확정 Entity에서 온다.
+   return {name:e.displayName,title:e.title,entityId:e.entityId,pageId:e.pageId,desc:e.desc,photo:e.photo,quality:'entity-locked',sources:[e.source]};
+ })();CANDIDATE_CHECK_CACHE.set(k,promise);return promise;
 }
-async function previewCandidate(s,name,box){
- const token=String(Date.now())+Math.random();box.dataset.previewToken=token;
- box.innerHTML='<div class="preview-card">🔎 설명과 대표사진을 확인하고 있어요…</div>';
+async function verifyCandidateOnce(section,name){return verifyCandidateTarget(section,{name,source:'seed'})}
+async function previewCandidate(s,target,box){
+ const name=typeof target==='string'?target:target.name, token=String(Date.now())+Math.random();box.dataset.previewToken=token;
+ box.innerHTML='<div class="preview-card">🔎 같은 대상을 가리키는 설명과 사진인지 확인하고 있어요…</div>';
  try{
-  const verified=await verifyCandidateOnce(s,name);if(box.dataset.previewToken!==token)return;
-  if(!verified){box.innerHTML='<div class="preview-card"><b>이 항목은 추천후보 기준을 통과하지 못했습니다.</b></div>';return;}
-  if(!verified.photo){box.innerHTML='<div class="preview-card"><b>대표사진을 안정적으로 찾지 못했습니다.</b><p>추천후보에서는 제외하고 다른 후보를 보여줍니다.</p></div>';return;}
-  box.innerHTML=`<div class="preview-card"><img src="${verified.photo}" alt="${esc(name)}"><h3>${esc(name)}</h3><p>${esc(verified.desc)}</p><p class="note">자료원: ${esc((verified.sources||[]).join(' + '))}</p><div class="preview-actions"><button class="accept-candidate">⭐ 이 내용 그대로 추가하기</button><button class="skip-candidate">이번에는 넣지 않기</button></div></div>`;
-  box.querySelector('.accept-candidate').onclick=async()=>{const btn=box.querySelector('.accept-candidate');if(btn)btn.disabled=true;try{const a=getCustom(s);if(hasIdentity(name,a)){alert('이미 같은 항목이 있습니다.');return;}const id=newItemId();a.push({id,name,desc:verified.desc,emoji:'⭐',source:'recommended',photoVerified:true,photoRemote:verified.photo,sources:verified.sources||[]});setCustom(s,a);box.innerHTML='';await renderSection(s)}catch(e){alert('추가 중 오류가 발생했습니다. 다시 시도해 주세요.');if(btn)btn.disabled=false;}};
+  const verified=await verifyCandidateTarget(s,target);if(box.dataset.previewToken!==token)return;
+  if(!verified){box.innerHTML='<div class="preview-card"><b>이 검색대상은 아직 확실한 하나의 대상으로 확인되지 않았습니다.</b><p>억지로 넣지 않고 다음 후보를 찾습니다.</p></div>';return;}
+  box.innerHTML=`<div class="preview-card"><img src="${verified.photo}" alt="${esc(name)}"><h3>${esc(name)}</h3><p>${esc(verified.desc)}</p><p class="note">확정 대상: ${esc(verified.title)} · ${esc(verified.entityId)} · 자료원: ${esc(verified.sources.join(' + '))}</p><div class="preview-actions"><button class="accept-candidate">⭐ 이 내용 그대로 추가하기</button><button class="skip-candidate">이번에는 넣지 않기</button></div></div>`;
+  box.querySelector('.accept-candidate').onclick=async()=>{const btn=box.querySelector('.accept-candidate');if(btn)btn.disabled=true;try{const a=getCustom(s);if(hasIdentity(name,a)){alert('이미 같은 항목이 있습니다.');return;}const id=newItemId();a.push({id,name,desc:verified.desc,emoji:'⭐',source:'recommended',photoVerified:true,photoRemote:verified.photo,entityId:verified.entityId,entityTitle:verified.title,pageId:verified.pageId,sources:verified.sources});setCustom(s,a);box.innerHTML='';await renderSection(s)}catch(e){alert('추가 중 오류가 발생했습니다. 다시 시도해 주세요.');if(btn)btn.disabled=false;}};
   box.querySelector('.skip-candidate').onclick=()=>{box.dataset.previewToken='';box.innerHTML=''};
  }catch(e){if(box.dataset.previewToken===token)box.innerHTML='<div class="preview-card"><b>확인 중 오류가 있었습니다.</b><p>다른 후보를 선택해 주세요.</p></div>';}
 }
 async function renderCandidates(s,host){
  const targets=await discoverCandidateTargets(COUNTRY,s);if(!targets.length)return;
  const active=getCustom(s),wrap=document.createElement('div');wrap.className='candidate-box';
- wrap.innerHTML=`<h3>✨ 추천할 만한 항목</h3><p class="note">검색대상을 넉넉히 모은 뒤 같은 기준으로 설명과 대표사진을 확인합니다. 특정 후보를 위한 예외 규칙은 사용하지 않습니다.</p><div class="candidate-legend">🪄 좋은 후보를 찾고 있어요…</div><div class="candidate-chips"></div><div class="candidate-preview"></div>`;
+ wrap.innerHTML=`<h3>✨ 추천할 만한 항목</h3><p class="note">검색대상을 넉넉히 모은 뒤 하나의 확정된 대상(Entity)에서 설명과 대표사진을 함께 가져옵니다. 특정 후보용 예외 규칙은 사용하지 않습니다.</p><div class="candidate-legend">🪄 좋은 후보를 찾고 있어요…</div><div class="candidate-chips"></div><div class="candidate-preview"></div>`;
  host.parentElement.appendChild(wrap);const chips=wrap.querySelector('.candidate-chips'),legend=wrap.querySelector('.candidate-legend'),pv=wrap.querySelector('.candidate-preview');
  let passed=0,checked=0;const seen=new Set();
  // 4개씩 병렬 검사: 한 자료원이 느리거나 실패해도 다른 후보 검사는 계속된다.
  for(let i=0;i<targets.length&&passed<CANDIDATE_TARGET;i+=4){
   if(!wrap.isConnected)return;
   const batch=targets.slice(i,i+4);
-  const results=await Promise.all(batch.map(async t=>{try{return [t,await verifyCandidateOnce(s,t.name)]}catch(e){return [t,null]}}));
+  const results=await Promise.all(batch.map(async t=>{try{return [t,await verifyCandidateTarget(s,t)]}catch(e){return [t,null]}}));
   for(const [t,v] of results){checked++;if(!v||!v.photo)continue;const k=normalizeItemName(t.name);if(seen.has(k))continue;seen.add(k);
    const added=hasIdentity(t.name,active),b=document.createElement('button');b.className='candidate-chip '+(added?'added':'available');b.dataset.name=t.name;b.textContent=t.name;b.disabled=added;
-   if(!added)b.onclick=()=>previewCandidate(s,t.name,pv);chips.appendChild(b);passed++;if(passed>=CANDIDATE_TARGET)break;
+   if(!added)b.onclick=()=>previewCandidate(s,t,pv);chips.appendChild(b);passed++;if(passed>=CANDIDATE_TARGET)break;
   }
   legend.textContent=`🪄 ${checked}개 확인 · 사진과 설명이 좋은 후보 ${passed}개`;
  }
- legend.textContent=passed?`✓ 설명과 대표사진을 함께 확인한 추천후보 ${passed}개`:'추천 기준을 통과한 후보가 없습니다. 검색원을 바꾸거나 범위를 넓혀 다시 찾습니다.';
+ legend.textContent=passed?`✓ 같은 대상으로 설명과 사진을 확인한 추천후보 ${passed}개`:'추천 기준을 통과한 후보가 없습니다. 검색원을 바꾸거나 범위를 넓혀 다시 찾습니다.';
 }
 async function renderSection(s){
  const el=document.getElementById(s+'List'); el.parentElement.querySelectorAll('.candidate-box').forEach(x=>x.remove());
