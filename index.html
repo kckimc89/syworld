@@ -11,7 +11,7 @@ button.improve-desc{background:#e7f4ff;border-color:#87bde8}button.last-confirme
 .candidate-box{margin-top:14px;padding:14px;border:1px dashed #9db8d8;border-radius:14px;background:#f7fbff}.candidate-box h3{margin:0 0 6px}.candidate-chips{display:flex;gap:7px;flex-wrap:wrap}.candidate-chip{border:1px solid #b8cbe1;background:white;border-radius:999px;padding:7px 10px;font-weight:850}.candidate-chip.added{opacity:.38;background:#eef1f4;color:#667085;border-color:#d8dee8}.candidate-chip.available{opacity:1}.candidate-legend{font-size:.82rem;color:#68758a;margin:4px 0 9px}.preview-card{margin-top:12px;border:2px solid #8bb2df;border-radius:15px;padding:13px;background:white}.preview-card img{width:100%;max-height:260px;object-fit:contain;background:#eef1f4;border-radius:10px}.preview-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.preview-actions button{border:1px solid #cbd5e1;background:white;border-radius:10px;padding:8px 11px;font-weight:800}.discover{background:#fff7d8;border:1px solid #ead39d;border-radius:12px;padding:9px 11px;margin-bottom:12px}.trial-note{background:#eaf8ef;border:1px solid #b9dfc5;border-radius:14px;padding:12px;margin:10px 0 18px}
 
 .diagnostic-panel{margin-top:12px;padding:12px;border:2px solid #f0b44c;border-radius:13px;background:#fff9e8;font-size:.88rem;line-height:1.55}.diagnostic-panel h4{margin:0 0 7px;color:#7a4b00}.diagnostic-grid{display:grid;grid-template-columns:max-content 1fr;gap:4px 9px}.diagnostic-grid b{color:#5b6472}.diag-seed{background:#eef8ff}.diag-auto{background:#fff3e8}.diag-copy{margin-top:9px;border:1px solid #d5a64c;background:white;border-radius:9px;padding:7px 10px;font-weight:800}
-</style></head><body><header id="header"><div class="head"><div><div class="brandline"><div class="brand" id="brand">매직 백과</div><button class="title-edit" id="titleEdit" title="제목 바꾸기">✏️ 제목</button><button class="title-edit" id="backupBtn" title="백업과 복원">💾 백업</button></div><div class="country-title" id="countryTitle"></div></div><button class="back hidden" id="backBtn">나라 목록으로</button></div><nav id="nav" class="hidden"><a href="#basic">기본정보</a><a href="#flag">국기</a><a href="#capital">수도</a><a href="#nature">자연·기후</a><a href="#language">언어</a><a href="#food">음식</a><a href="#animals">동식물</a><a href="#places">명소</a><a href="#culture">문화</a><a href="#singers">가수</a><a href="#athletes">운동선수</a><a href="#people">역사인물</a><a href="#art">예술작품</a><a href="#history">역사</a><a href="#sources">자료</a></nav></header><main><div id="home"><div class="home-tools"><div class="hero"><h1>세계 여러 나라를 탐험해 보아요!</h1><p>국기·음식·동물·명소를 만나며 세계 여행을 떠나요.</p><div class="trial-note"><b>🧭 요술방망이 엔진 4 · 안정형 범용 검색</b> · 스페인, 일본, 미국에서 후보를 골라 아이가 직접 백과사전을 채워 보아요.</div><div class="search"><input id="search" placeholder="🔎 나라 이름을 찾아보세요 (예: 일본, 브라질)"></div></div><div style="display:flex;gap:8px;align-items:center"><div class="continents" id="continentChips" style="flex:1"></div><button class="fav-toggle" id="favOnly">★ 즐겨찾기</button></div></div><div class="country-grid" id="countryGrid"></div></div><div id="detail" class="hidden">
+</style></head><body><button onclick="e14ClearExperimentData()" style="position:fixed;right:14px;bottom:14px;z-index:9999;border:1px solid #d4b36d;background:#fff8e8;border-radius:999px;padding:10px 14px;font-weight:800;box-shadow:0 3px 12px #0002">🧹 실험 데이터 초기화</button><header id="header"><div class="head"><div><div class="brandline"><div class="brand" id="brand">매직 백과</div><button class="title-edit" id="titleEdit" title="제목 바꾸기">✏️ 제목</button><button class="title-edit" id="backupBtn" title="백업과 복원">💾 백업</button></div><div class="country-title" id="countryTitle"></div></div><button class="back hidden" id="backBtn">나라 목록으로</button></div><nav id="nav" class="hidden"><a href="#basic">기본정보</a><a href="#flag">국기</a><a href="#capital">수도</a><a href="#nature">자연·기후</a><a href="#language">언어</a><a href="#food">음식</a><a href="#animals">동식물</a><a href="#places">명소</a><a href="#culture">문화</a><a href="#singers">가수</a><a href="#athletes">운동선수</a><a href="#people">역사인물</a><a href="#art">예술작품</a><a href="#history">역사</a><a href="#sources">자료</a></nav></header><main><div id="home"><div class="home-tools"><div class="hero"><h1>세계 여러 나라를 탐험해 보아요!</h1><p>국기·음식·동물·명소를 만나며 세계 여행을 떠나요.</p><div class="trial-note"><b>🧭 요술방망이 엔진 4 · 안정형 범용 검색</b> · 스페인, 일본, 미국에서 후보를 골라 아이가 직접 백과사전을 채워 보아요.</div><div class="search"><input id="search" placeholder="🔎 나라 이름을 찾아보세요 (예: 일본, 브라질)"></div></div><div style="display:flex;gap:8px;align-items:center"><div class="continents" id="continentChips" style="flex:1"></div><button class="fav-toggle" id="favOnly">★ 즐겨찾기</button></div></div><div class="country-grid" id="countryGrid"></div></div><div id="detail" class="hidden">
 <section id="basic"><h2>1. 기본정보</h2><div class="info-grid" id="infoGrid"></div><div class="compare" id="compare"></div><div id="intro"></div></section>
 <section id="flag"><h2>2. 국기</h2><div class="flagbox"><img class="flagimg" id="flagImg"></div><p id="flagDesc"></p><p class="note">국기 이미지: Wikimedia Commons 공개자료</p></section>
 <section id="capital"><h2>3. 수도 설명</h2><h3 id="capitalName"></h3><div id="capitalDesc"></div></section>
@@ -894,90 +894,89 @@ async function genericDescription(name,subjectId,section){
 const CANDIDATE_CHECK_CACHE=new Map();
 const CANDIDATE_TARGET=8;
 
-// ===== Engine 13: dynamic reference classifier =====
-// No fixed Q-ID roots per category. The engine resolves several category reference examples,
-// learns their actual structural signatures (P31/P106 and labels), then compares candidates.
-const D13_REF={
- food:['파에야','스시','햄버거','라멘'],
- animals:['이베리아스라소니','일본원숭이','흰머리수리','벚나무'],
- places:['사그라다 파밀리아','후지산','자유의 여신상','알람브라 궁전'],
- culture:['플라멩코','다도','재즈','산 페르민 축제'],
- singers:['로살리아','우타다 히카루','테일러 스위프트','훌리오 이글레시아스'],
- athletes:['라파엘 나달','오타니 쇼헤이','세리나 윌리엄스','안드레스 이니에스타'],
- people:['미겔 데 세르반테스','도쿠가와 이에야스','조지 워싱턴','안토니 가우디'],
- art:['게르니카','가나가와 해변의 높은 파도 아래','아메리칸 고딕','돈키호테']
-};
-const D13_ENTITY=new Map(),D13_PROFILE=new Map();
-function d13Ids(e,p){return (e?.claims?.[p]||[]).map(x=>x?.mainsnak?.datavalue?.value?.id).filter(Boolean)}
-async function d13Get(ids){
- ids=[...new Set(ids.filter(x=>/^Q\d+$/.test(x)))];const miss=ids.filter(x=>!D13_ENTITY.has(x));
- for(let i=0;i<miss.length;i+=40){const b=miss.slice(i,i+40);try{
+// ===== Engine 14: Two independent gates =====
+// Gate A: What is this?  Gate B: How is it related to the subject?
+// The two questions are deliberately scored separately.
+const E14_CACHE=new Map();
+function e14ClaimIds(e,p){return (e?.claims?.[p]||[]).map(x=>x?.mainsnak?.datavalue?.value?.id).filter(Boolean)}
+async function e14Entities(ids){
+ ids=[...new Set((ids||[]).filter(x=>/^Q\d+$/.test(x)))];const out={},miss=ids.filter(id=>!E14_CACHE.has(id));
+ for(let i=0;i<miss.length;i+=45){const b=miss.slice(i,i+45);try{
   const u='https://www.wikidata.org/w/api.php?action=wbgetentities&ids='+b.join('|')+'&props=labels|descriptions|claims&languages=ko|en&languagefallback=1&format=json&origin=*';
-  const r=await fetch(u);if(!r.ok)continue;const j=await r.json();for(const id of b)D13_ENTITY.set(id,j.entities?.[id]||null)
+  const r=await fetch(u);if(!r.ok)continue;const j=await r.json();for(const id of b)E14_CACHE.set(id,j.entities?.[id]||null)
  }catch(e){}}
- const o={};for(const id of ids)o[id]=D13_ENTITY.get(id)||null;return o;
+ for(const id of ids)out[id]=E14_CACHE.get(id)||null;return out;
 }
-async function d13SearchQ(name){
- try{const u='https://www.wikidata.org/w/api.php?action=wbsearchentities&search='+encodeURIComponent(name)+'&language=ko&uselang=ko&type=item&limit=6&format=json&origin=*';const r=await fetch(u);if(!r.ok)return '';const j=await r.json();
-  const exact=(j.search||[]).find(x=>normalizeItemName(x.label)===normalizeItemName(name));return (exact||(j.search||[])[0])?.id||'';
- }catch(e){return ''}
+async function e14Labels(ids){const m=await e14Entities(ids),a=[];for(const id of ids){const e=m[id];a.push((e?.labels?.ko?.value||e?.labels?.en?.value||e?.descriptions?.ko?.value||e?.descriptions?.en?.value||'').toLowerCase())}return a}
+const E14_KIND_WORDS={
+ food:['음식','요리','식품','dish','food','cuisine','beverage','drink'],
+ animals:['동물','식물','종','분류군','포유류','조류','나무','꽃','taxon','animal','plant','bird','tree'],
+ places:['건축물','건물','산','섬','공원','성당','궁전','유적','박물관','도시','building','mountain','island','park','cathedral','palace','museum','city'],
+ culture:['문화','축제','전통','춤','음악','관습','언어','festival','tradition','dance','music','custom','culture'],
+ singers:['가수','음악가','성악가','싱어송라이터','singer','musician','vocalist'],
+ athletes:['선수','운동선수','축구 선수','테니스 선수','농구 선수','레이싱 드라이버','athlete','footballer','tennis player','basketball player','racing driver'],
+ people:['사람','인간','작가','화가','건축가','정치인','과학자','human','writer','painter','architect','politician','scientist'],
+ art:['작품','회화','그림','소설','영화','조각','음악 작품','painting','artwork','novel','film','sculpture','composition']
+};
+const E14_HUMAN_SECTIONS=new Set(['singers','athletes','people']);
+async function e14KindGate(entity,section){
+ const q=entity?.entityId||'';if(!/^Q\d+$/.test(q))return {state:'uncertain',reason:'구조 ID 없음',labels:[]};
+ const m=await e14Entities([q]),e=m[q];if(!e)return {state:'uncertain',reason:'구조정보 없음',labels:[]};
+ const ids=[...e14ClaimIds(e,'P31'),...e14ClaimIds(e,'P106')], labels=await e14Labels(ids);
+ const corpus=(labels.join(' ')+' '+(e.descriptions?.ko?.value||'')+' '+(e.descriptions?.en?.value||'')).toLowerCase();
+ const words=E14_KIND_WORDS[section]||[],hits=words.filter(w=>corpus.includes(w.toLowerCase()));
+ // Reject only clear category contradictions; uncertainty is retained for Gate B.
+ const humanHint=/human|사람|인간/.test(corpus)||e14ClaimIds(e,'P31').includes('Q5');
+ if(E14_HUMAN_SECTIONS.has(section) && !humanHint && hits.length===0)return {state:'wrong',reason:'사람/직업 계열 증거가 없음',labels,hits};
+ if(section==='art' && humanHint)return {state:'wrong',reason:'작품 카테고리인데 사람 Entity',labels,hits};
+ if(section==='food' && humanHint)return {state:'wrong',reason:'음식 카테고리인데 사람 Entity',labels,hits};
+ if(section==='animals' && humanHint)return {state:'wrong',reason:'동식물 카테고리인데 사람 Entity',labels,hits};
+ return {state:hits.length?'sure':'uncertain',reason:hits.length?'종류 단서 확인':'종류는 애매하지만 명백한 모순 없음',labels,hits};
 }
-async function d13Signature(qid){
- const m=await d13Get([qid]),e=m[qid];if(!e)return null;
- const p31=d13Ids(e,'P31'),p106=d13Ids(e,'P106');
- const lm=await d13Get([...p31,...p106]);
- const labels=[...p31,...p106].map(id=>lm[id]?.labels?.ko?.value||lm[id]?.labels?.en?.value||'').filter(Boolean);
- return {qid,p31,p106,labels,desc:e.descriptions?.ko?.value||e.descriptions?.en?.value||''};
+function e14SubjectQ(subjectId){return {ES:'Q29',JP:'Q17',US:'Q30'}[subjectId]||''}
+const E14_REL_PROPS={
+ food:['P495','P17'], animals:['P183','P17','P495'], places:['P17','P131'],
+ culture:['P17','P495','P276'], singers:['P27','P19'], athletes:['P27','P19','P54'], people:['P27','P19'],
+ art:['P495','P170','P50','P57']
+};
+async function e14RelationGate(entity,subjectId,section){
+ const q=entity?.entityId||'',subjectQ=e14SubjectQ(subjectId),p=subjectProfile(subjectId);
+ if(!/^Q\d+$/.test(q))return {state:'uncertain',reason:'구조 ID 없음',hits:[]};
+ const m=await e14Entities([q]),e=m[q];if(!e)return {state:'uncertain',reason:'구조정보 없음',hits:[]};
+ const props=E14_REL_PROPS[section]||[], direct=[];
+ for(const prop of props){for(const id of e14ClaimIds(e,prop))if(id===subjectQ)direct.push(prop)}
+ if(direct.length)return {state:'sure',reason:'주제와 직접 구조관계 확인',hits:direct};
+ // second evidence: country aliases in Wikidata description + entity-locked Wikipedia description.
+ const corpus=((e.descriptions?.ko?.value||'')+' '+(e.descriptions?.en?.value||'')+' '+(entity.title||'')+' '+(entity.desc||'')).toLowerCase();
+ const aliases=(p.aliases||[]).filter(x=>String(x).length>1);
+ const words=aliases.filter(w=>corpus.includes(String(w).toLowerCase()));
+ // Country relation by prose alone is never "sure"; it is uncertain and requires strong identity/category evidence.
+ return {state:words.length?'uncertain':'weak',reason:words.length?'설명에 주제 관계는 있으나 구조관계 미확인':'주제 관계 증거가 약함',hits:words};
 }
-async function d13Profile(section){
- if(D13_PROFILE.has(section))return D13_PROFILE.get(section);
- const sigs=[];
- for(const n of D13_REF[section]||[]){const q=await d13SearchQ(n);if(q){const s=await d13Signature(q);if(s)sigs.push(s)}}
- const typeFreq=new Map(),occFreq=new Map(),words=new Map();
- for(const s of sigs){
-  for(const x of s.p31)typeFreq.set(x,(typeFreq.get(x)||0)+1);
-  for(const x of s.p106)occFreq.set(x,(occFreq.get(x)||0)+1);
-  for(const w of (s.labels.join(' ')+' '+s.desc).toLowerCase().split(/[\s,·()]+/).filter(x=>x.length>=2))words.set(w,(words.get(w)||0)+1);
- }
- const prof={sigs,typeFreq,occFreq,words};D13_PROFILE.set(section,prof);return prof;
-}
-function d13TextScore(sig,prof){
- const corpus=(sig.labels.join(' ')+' '+sig.desc).toLowerCase();let n=0;
- for(const [w,c] of prof.words)if(c>=2&&corpus.includes(w))n+=Math.min(c,3);
- return n;
-}
-async function d13Judge(entity,section){
- const qid=entity?.entityId||'';if(!/^Q\d+$/.test(qid))return {state:'uncertain',reason:'구조 Entity ID 없음',score:0};
- const sig=await d13Signature(qid);if(!sig)return {state:'uncertain',reason:'Wikidata 구조정보 없음',score:0};
- const prof=await d13Profile(section);if(!prof.sigs.length)return {state:'uncertain',reason:'동적 기준 생성 실패',score:0};
- let structural=0;
- for(const x of sig.p31)structural+=prof.typeFreq.get(x)||0;
- for(const x of sig.p106)structural+=prof.occFreq.get(x)||0;
- const text=d13TextScore(sig,prof);
- // Strong direct structural overlap => sure. No overlap + no learned semantic words => wrong.
- // Middle cases are uncertain and get a second, conservative description/category check.
- let state='uncertain',reason='기준 예시와 일부만 일치';
- if(structural>=2 || (structural>=1&&text>=2)){state='sure';reason='동적 기준과 구조가 직접 일치'}
- else if(structural===0&&text===0){state='wrong';reason='동적 기준과 구조·의미 모두 불일치'}
- return {state,reason,score:structural*10+text,structural,text,types:sig.labels};
+function e14ClearExperimentData(){
+ if(!confirm('추천 검색 캐시와 「전에 삭제한 항목」 기록만 초기화할까요?\\n직접 추가한 항목과 사진은 지우지 않습니다.'))return;
+ const prefixes=['trial_candidates_used_','magicwand_photo_','candidate_','rebuilt_','place_desc_v30_'];
+ const remove=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(prefixes.some(p=>k.startsWith(p))||/deleted/i.test(k))remove.push(k)}
+ remove.forEach(k=>localStorage.removeItem(k));CANDIDATE_CHECK_CACHE.clear();E14_CACHE.clear();
+ alert('실험 데이터가 초기화되었습니다. 페이지를 새로 열어 추천 후보를 다시 확인해 주세요.');
+ location.reload();
 }
 async function verifyCandidateTarget(section,target){
  const name=typeof target==='string'?target:target.name, source=typeof target==='string'?'discover':(target.source||'discover');
- const k='d13|'+COUNTRY+'|'+section+'|'+normalizeItemName(name);
+ const k='e14|'+COUNTRY+'|'+section+'|'+normalizeItemName(name);
  if(CANDIDATE_CHECK_CACHE.has(k))return CANDIDATE_CHECK_CACHE.get(k);
  const promise=(async()=>{
    const ent=await resolveWikipediaEntity(name,COUNTRY,section,source);if(!ent)return null;
-   const j=await d13Judge(ent,section);
-   // 확실히 틀린 것만 버린다. 애매한 후보는 기존의 Entity-locked evidence를 한 번 더 본다.
-   if(j.state==='wrong')return null;
-   if(j.state==='uncertain'){
+   const kind=await e14KindGate(ent,section);
+   if(kind.state==='wrong')return null;
+   const relation=await e14RelationGate(ent,COUNTRY,section);
+   if(relation.state==='weak')return null;
+   if(relation.state==='uncertain'){
      const d=ent.diagnostic||{};
-     const strongIdentity=(d.identityScore||0)>=20;
-     const relation=(d.subjectEvidence||0)>=1;
-     const category=(d.categoryEvidence||0)>=1;
-     if(!(strongIdentity&&relation&&category))return null;
+     // Ambiguous relation survives only with exact identity + category evidence; no lowering to fill quota.
+     if((d.identityScore||0)<20 || (d.categoryEvidence||0)<1)return null;
    }
-   return {name:ent.displayName,title:ent.title,entityId:ent.entityId,pageId:ent.pageId,desc:ent.desc,photo:ent.photo,quality:'dynamic-reference',sources:[ent.source],diagnostic:{...(ent.diagnostic||{}),dynamic13:j}};
+   return {name:ent.displayName,title:ent.title,entityId:ent.entityId,pageId:ent.pageId,desc:ent.desc,photo:ent.photo,quality:'two-gate',sources:[ent.source],diagnostic:{...(ent.diagnostic||{}),gate14:{kind,relation}}};
  })();CANDIDATE_CHECK_CACHE.set(k,promise);return promise;
 }
 async function verifyCandidateOnce(section,name){return verifyCandidateTarget(section,{name,source:'seed'})}
@@ -990,7 +989,7 @@ async function previewCandidate(s,target,box){
   const d=verified.diagnostic||{};
   const srcLabel=d.candidateSource==='seed'?'기본 후보풀(seed)':'자동 Wikipedia 발견';
   const diagText=[`카테고리: ${SECTION_LABEL[s]}`,`후보명: ${name}`,`후보 원천: ${srcLabel}`,`실제 검색어: ${d.query||'-'}`,`확정 제목: ${verified.title}`,`Entity: ${verified.entityId}`,`이름점수: ${d.identityScore??'-'}`,`주제증거: ${d.subjectEvidence??'-'} [${(d.subjectTerms||[]).join(', ')}]`,`카테고리증거: ${d.categoryEvidence??'-'} [${(d.categoryTerms||[]).join(', ')}]`].join('\n');
-  box.innerHTML=`<div class="preview-card"><img src="${verified.photo}" alt="${esc(name)}"><h3>${esc(name)}</h3><p>${esc(verified.desc)}</p><p class="note">확정 대상: ${esc(verified.title)} · ${esc(verified.entityId)} · 자료원: ${esc(verified.sources.join(' + '))}</p><div class="diagnostic-panel ${d.candidateSource==='seed'?'diag-seed':'diag-auto'}"><h4>🩺 원인 진단 정보</h4><div class="diagnostic-grid"><b>카테고리</b><span>${esc(SECTION_LABEL[s])}</span><b>후보 원천</b><span>${esc(srcLabel)}</span><b>실제 검색어</b><span>${esc(d.query||'-')}</span><b>확정된 제목</b><span>${esc(verified.title)}</span><b>Entity ID</b><span>${esc(verified.entityId)}</span><b>이름 일치점수</b><span>${esc(String(d.identityScore??'-'))}</span><b>주제 증거</b><span>${esc(String(d.subjectEvidence??'-'))} · ${esc((d.subjectTerms||[]).join(', ')||'없음')}</span><b>카테고리 증거</b><span>${esc(String(d.categoryEvidence??'-'))} · ${esc((d.categoryTerms||[]).join(', ')||'없음')}</span></div>${v.diagnostic?.dynamic13?`<div style="margin:10px 0;padding:10px 12px;border:1px solid #b9d9c2;border-radius:12px;background:#f3fbf5"><b>🧠 동적 기준 판정</b><br>결과: ${esc(v.diagnostic.dynamic13.state)}<br>구조점수: ${v.diagnostic.dynamic13.structural||0} · 의미점수: ${v.diagnostic.dynamic13.text||0}<br>Entity 종류: ${esc((v.diagnostic.dynamic13.types||[]).join(', ')||'확인 안 됨')}<br>판정 이유: ${esc(v.diagnostic.dynamic13.reason||'')}</div>`:''}<button class="diag-copy">진단정보 복사</button></div><div class="preview-actions"><button class="accept-candidate">⭐ 이 내용 그대로 추가하기</button><button class="skip-candidate">이번에는 넣지 않기</button></div></div>`;
+  box.innerHTML=`<div class="preview-card"><img src="${verified.photo}" alt="${esc(name)}"><h3>${esc(name)}</h3><p>${esc(verified.desc)}</p><p class="note">확정 대상: ${esc(verified.title)} · ${esc(verified.entityId)} · 자료원: ${esc(verified.sources.join(' + '))}</p><div class="diagnostic-panel ${d.candidateSource==='seed'?'diag-seed':'diag-auto'}"><h4>🩺 원인 진단 정보</h4><div class="diagnostic-grid"><b>카테고리</b><span>${esc(SECTION_LABEL[s])}</span><b>후보 원천</b><span>${esc(srcLabel)}</span><b>실제 검색어</b><span>${esc(d.query||'-')}</span><b>확정된 제목</b><span>${esc(verified.title)}</span><b>Entity ID</b><span>${esc(verified.entityId)}</span><b>이름 일치점수</b><span>${esc(String(d.identityScore??'-'))}</span><b>주제 증거</b><span>${esc(String(d.subjectEvidence??'-'))} · ${esc((d.subjectTerms||[]).join(', ')||'없음')}</span><b>카테고리 증거</b><span>${esc(String(d.categoryEvidence??'-'))} · ${esc((d.categoryTerms||[]).join(', ')||'없음')}</span></div>${v.diagnostic?.gate14?`<div style="margin:10px 0;padding:10px 12px;border:1px solid #b8d6d0;border-radius:12px;background:#f3fbfa"><b>🚪 1차 관문 · 무엇인가?</b><br>${esc(v.diagnostic.gate14.kind.state)} · ${esc(v.diagnostic.gate14.kind.reason)}<br>종류: ${esc((v.diagnostic.gate14.kind.labels||[]).join(', ')||'확인 안 됨')}<br><br><b>🔗 2차 관문 · 주제와 어떤 관계인가?</b><br>${esc(v.diagnostic.gate14.relation.state)} · ${esc(v.diagnostic.gate14.relation.reason)}<br>관계 증거: ${esc((v.diagnostic.gate14.relation.hits||[]).join(', ')||'없음')}</div>`:''}<button class="diag-copy">진단정보 복사</button></div><div class="preview-actions"><button class="accept-candidate">⭐ 이 내용 그대로 추가하기</button><button class="skip-candidate">이번에는 넣지 않기</button></div></div>`;
   box.querySelector('.diag-copy').onclick=async()=>{try{await navigator.clipboard.writeText(diagText);alert('진단정보를 복사했습니다.')}catch(e){prompt('아래 진단정보를 복사해 주세요.',diagText)}};
   box.querySelector('.accept-candidate').onclick=async()=>{
    const btn=box.querySelector('.accept-candidate');if(btn)btn.disabled=true;
