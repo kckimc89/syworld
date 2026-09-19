@@ -11,7 +11,7 @@ button.improve-desc{background:#e7f4ff;border-color:#87bde8}button.last-confirme
 .candidate-box{margin-top:14px;padding:14px;border:1px dashed #9db8d8;border-radius:14px;background:#f7fbff}.candidate-box h3{margin:0 0 6px}.candidate-chips{display:flex;gap:7px;flex-wrap:wrap}.candidate-chip{border:1px solid #b8cbe1;background:white;border-radius:999px;padding:7px 10px;font-weight:850}.candidate-chip.added{opacity:.38;background:#eef1f4;color:#667085;border-color:#d8dee8}.candidate-chip.available{opacity:1}.candidate-legend{font-size:.82rem;color:#68758a;margin:4px 0 9px}.preview-card{margin-top:12px;border:2px solid #8bb2df;border-radius:15px;padding:13px;background:white}.preview-card img{width:100%;max-height:260px;object-fit:contain;background:#eef1f4;border-radius:10px}.preview-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.preview-actions button{border:1px solid #cbd5e1;background:white;border-radius:10px;padding:8px 11px;font-weight:800}.discover{background:#fff7d8;border:1px solid #ead39d;border-radius:12px;padding:9px 11px;margin-bottom:12px}.trial-note{background:#eaf8ef;border:1px solid #b9dfc5;border-radius:14px;padding:12px;margin:10px 0 18px}
 
 .diagnostic-panel{margin-top:12px;padding:12px;border:2px solid #f0b44c;border-radius:13px;background:#fff9e8;font-size:.88rem;line-height:1.55}.diagnostic-panel h4{margin:0 0 7px;color:#7a4b00}.diagnostic-grid{display:grid;grid-template-columns:max-content 1fr;gap:4px 9px}.diagnostic-grid b{color:#5b6472}.diag-seed{background:#eef8ff}.diag-auto{background:#fff3e8}.diag-copy{margin-top:9px;border:1px solid #d5a64c;background:white;border-radius:9px;padding:7px 10px;font-weight:800}
-</style></head><body><button onclick="e16Reset()" style="position:fixed;right:14px;bottom:14px;z-index:9999;border:1px solid #d4b36d;background:#fff8e8;border-radius:999px;padding:10px 14px;font-weight:800;box-shadow:0 3px 12px #0002">🧹 실험 데이터 초기화</button><header id="header"><div class="head"><div><div class="brandline"><div class="brand" id="brand">매직 백과</div><button class="title-edit" id="titleEdit" title="제목 바꾸기">✏️ 제목</button><button class="title-edit" id="backupBtn" title="백업과 복원">💾 백업</button></div><div class="country-title" id="countryTitle"></div></div><button class="back hidden" id="backBtn">나라 목록으로</button></div><nav id="nav" class="hidden"><a href="#basic">기본정보</a><a href="#flag">국기</a><a href="#capital">수도</a><a href="#nature">자연·기후</a><a href="#language">언어</a><a href="#food">음식</a><a href="#animals">동식물</a><a href="#places">명소</a><a href="#culture">문화</a><a href="#singers">가수</a><a href="#athletes">운동선수</a><a href="#people">역사인물</a><a href="#art">예술작품</a><a href="#history">역사</a><a href="#sources">자료</a></nav></header><main><div id="home"><div class="home-tools"><div class="hero"><h1>세계 여러 나라를 탐험해 보아요!</h1><p>국기·음식·동물·명소를 만나며 세계 여행을 떠나요.</p><div class="trial-note"><b>🧭 요술방망이 엔진 4 · 안정형 범용 검색</b> · 스페인, 일본, 미국에서 후보를 골라 아이가 직접 백과사전을 채워 보아요.</div><div class="search"><input id="search" placeholder="🔎 나라 이름을 찾아보세요 (예: 일본, 브라질)"></div></div><div style="display:flex;gap:8px;align-items:center"><div class="continents" id="continentChips" style="flex:1"></div><button class="fav-toggle" id="favOnly">★ 즐겨찾기</button></div></div><div class="country-grid" id="countryGrid"></div></div><div id="detail" class="hidden">
+</style></head><body><button onclick="(()=>{if(!confirm('추천 후보 실험 기록만 초기화할까요?'))return;const a=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i)||'';if(/trial_candidates_used_|candidate_|rebuilt_|deleted/i.test(k))a.push(k)}a.forEach(k=>localStorage.removeItem(k));location.reload()})()" style="position:fixed;right:14px;bottom:14px;z-index:9999;border:1px solid #d4b36d;background:#fff8e8;border-radius:999px;padding:10px 14px;font-weight:800;box-shadow:0 3px 12px #0002">🧹 후보 실험기록 초기화</button><header id="header"><div class="head"><div><div class="brandline"><div class="brand" id="brand">매직 백과</div><button class="title-edit" id="titleEdit" title="제목 바꾸기">✏️ 제목</button><button class="title-edit" id="backupBtn" title="백업과 복원">💾 백업</button></div><div class="country-title" id="countryTitle"></div></div><button class="back hidden" id="backBtn">나라 목록으로</button></div><nav id="nav" class="hidden"><a href="#basic">기본정보</a><a href="#flag">국기</a><a href="#capital">수도</a><a href="#nature">자연·기후</a><a href="#language">언어</a><a href="#food">음식</a><a href="#animals">동식물</a><a href="#places">명소</a><a href="#culture">문화</a><a href="#singers">가수</a><a href="#athletes">운동선수</a><a href="#people">역사인물</a><a href="#art">예술작품</a><a href="#history">역사</a><a href="#sources">자료</a></nav></header><main><div id="home"><div class="home-tools"><div class="hero"><h1>세계 여러 나라를 탐험해 보아요!</h1><p>국기·음식·동물·명소를 만나며 세계 여행을 떠나요.</p><div class="trial-note"><b>🧭 요술방망이 엔진 4 · 안정형 범용 검색</b> · 스페인, 일본, 미국에서 후보를 골라 아이가 직접 백과사전을 채워 보아요.</div><div class="search"><input id="search" placeholder="🔎 나라 이름을 찾아보세요 (예: 일본, 브라질)"></div></div><div style="display:flex;gap:8px;align-items:center"><div class="continents" id="continentChips" style="flex:1"></div><button class="fav-toggle" id="favOnly">★ 즐겨찾기</button></div></div><div class="country-grid" id="countryGrid"></div></div><div id="detail" class="hidden">
 <section id="basic"><h2>1. 기본정보</h2><div class="info-grid" id="infoGrid"></div><div class="compare" id="compare"></div><div id="intro"></div></section>
 <section id="flag"><h2>2. 국기</h2><div class="flagbox"><img class="flagimg" id="flagImg"></div><p id="flagDesc"></p><p class="note">국기 이미지: Wikimedia Commons 공개자료</p></section>
 <section id="capital"><h2>3. 수도 설명</h2><h3 id="capitalName"></h3><div id="capitalDesc"></div></section>
@@ -894,233 +894,121 @@ async function genericDescription(name,subjectId,section){
 const CANDIDATE_CHECK_CACHE=new Map();
 const CANDIDATE_TARGET=8;
 
-// ===== Engine 16: evidence accumulation / ranking =====
-// 핵심 원칙: 증거 부족 != 틀림. 명백한 반대 증거만 탈락시킨다.
-const E16_CACHE=new Map();
-function e16Ids(e,p){return (e?.claims?.[p]||[]).map(x=>x?.mainsnak?.datavalue?.value?.id).filter(Boolean)}
-async function e16Get(ids){
- ids=[...new Set((ids||[]).filter(x=>/^Q\d+$/.test(x)))];
- const miss=ids.filter(id=>!E16_CACHE.has(id));
- for(let i=0;i<miss.length;i+=45){
-   const b=miss.slice(i,i+45);
-   try{
-     const u='https://www.wikidata.org/w/api.php?action=wbgetentities&ids='+b.join('|')+
-       '&props=labels|descriptions|claims&languages=ko|en&languagefallback=1&format=json&origin=*';
-     const r=await fetch(u); if(!r.ok) continue;
-     const j=await r.json();
-     for(const id of b) E16_CACHE.set(id,j.entities?.[id]||null);
-   }catch(e){}
- }
- const o={}; for(const id of ids)o[id]=E16_CACHE.get(id)||null; return o;
+// ===== Engine 17: 5.2 preservation + explicit-error replacement =====
+// 정상 후보는 5.2 그대로 보존. "확실히 다른 종류/다른 국가의 장소"만 제외한다.
+// 제외된 후보는 렌더러가 기존 발견 풀의 다음 후보를 계속 검사하여 자연스럽게 교체한다.
+const E17_WD=new Map();
+async function e17Entity(id){
+ if(!/^Q\d+$/.test(id||''))return null;
+ if(E17_WD.has(id))return E17_WD.get(id);
+ try{
+  const u='https://www.wikidata.org/w/api.php?action=wbgetentities&ids='+id+
+   '&props=labels|descriptions|claims&languages=ko|en&languagefallback=1&format=json&origin=*';
+  const r=await fetch(u);if(!r.ok)return null;const j=await r.json(),e=j.entities?.[id]||null;
+  E17_WD.set(id,e);return e;
+ }catch(_){return null}
 }
-async function e16Labels(ids){
- const m=await e16Get(ids);
- return ids.map(id=>(m[id]?.labels?.ko?.value||m[id]?.labels?.en?.value||
-   m[id]?.descriptions?.ko?.value||m[id]?.descriptions?.en?.value||'').toLowerCase());
+function e17Ids(e,p){return (e?.claims?.[p]||[]).map(x=>x?.mainsnak?.datavalue?.value?.id).filter(Boolean)}
+function e17SubjectQ(){return {ES:'Q29',JP:'Q17',US:'Q30'}[COUNTRY]||''}
+async function e17PlaceCountries(e){
+ let out=[...e17Ids(e,'P17')],front=[...e17Ids(e,'P131')],seen=new Set();
+ for(let d=0;d<4&&front.length;d++){
+  const next=[];
+  for(const id of front){
+   if(seen.has(id))continue;seen.add(id);const p=await e17Entity(id);if(!p)continue;
+   out.push(...e17Ids(p,'P17'));next.push(...e17Ids(p,'P131'));
+  }
+  front=next;
+ }
+ return [...new Set(out)];
 }
-function e16SubjectQ(id){return {ES:'Q29',JP:'Q17',US:'Q30'}[id]||''}
-const E16_KIND={
- food:['음식','요리','식품','dish','food','beverage'],
- animals:['동물','식물','종','분류군','포유류','조류','나무','꽃','taxon','animal','plant','bird','tree','species'],
- places:['건축물','건물','산','섬','공원','성당','궁전','유적','박물관','도시','building','mountain','island','park','cathedral','palace','museum','city','monument'],
- culture:['문화','축제','전통','춤','음악','관습','언어','festival','tradition','dance','music','custom','culture'],
- singers:['가수','음악가','성악가','싱어송라이터','singer','musician','vocalist'],
- athletes:['선수','운동선수','축구 선수','테니스 선수','농구 선수','athlete','footballer','tennis player','basketball player','racing driver'],
- people:['사람','인간','작가','화가','건축가','정치인','과학자','human','writer','painter','architect','politician','scientist'],
- art:['작품','회화','그림','소설','영화','조각','painting','artwork','novel','film','sculpture','composition']
-};
-async function e16CountryOfPlace(e){
- let countries=[...e16Ids(e,'P17')], frontier=[...e16Ids(e,'P131')], seen=new Set();
- for(let d=0;d<4&&frontier.length;d++){
-   const m=await e16Get(frontier), next=[];
-   for(const id of frontier){
-     if(seen.has(id))continue; seen.add(id);
-     const x=m[id]; countries.push(...e16Ids(x,'P17')); next.push(...e16Ids(x,'P131'));
-   }
-   frontier=next;
- }
- return [...new Set(countries)];
-}
-async function e16Evidence(ent,subjectId,section){
- const q=ent?.entityId||'', sq=e16SubjectQ(subjectId), p=subjectProfile(subjectId);
- let score=0, positive=[], negative=[], uncertain=[];
- if(!/^Q\d+$/.test(q)) return {score:0,positive,negative,uncertain:['구조 ID 없음'],reject:false};
- const m=await e16Get([q]), e=m[q];
- if(!e) return {score:0,positive,negative,uncertain:['Wikidata 구조정보 없음'],reject:false};
-
- const typeIds=[...e16Ids(e,'P31'),...e16Ids(e,'P106')], labels=await e16Labels(typeIds);
- const corpus=(labels.join(' ')+' '+(e.descriptions?.ko?.value||'')+' '+(e.descriptions?.en?.value||'')).toLowerCase();
- const hits=(E16_KIND[section]||[]).filter(w=>corpus.includes(w.toLowerCase()));
- if(hits.length){score+=3;positive.push('종류 단서: '+hits.slice(0,4).join(', '))}
- else uncertain.push('종류 구조증거 부족');
-
- const human=e16Ids(e,'P31').includes('Q5')||/\bhuman\b|사람|인간/.test(corpus);
- if(['food','animals','art'].includes(section)&&human){
-   negative.push('명백한 종류 모순: 사람 Entity'); return {score:-99,positive,negative,uncertain,reject:true,labels};
- }
- if(['singers','athletes','people'].includes(section)&&!human&&!hits.length){
-   uncertain.push('사람/직업 구조증거 부족'); // 탈락시키지 않음
- }
-
- // 장소는 실제 국가가 확인되면 엄격 판정: 마추픽추 같은 명백한 타국 장소 제거
+async function e17ExplicitContradiction(v,section){
+ const e=await e17Entity(v?.entityId); if(!e)return {reject:false,reason:'구조정보 부족 — 5.2 후보 보존'};
+ const p31=e17Ids(e,'P31'), human=p31.includes('Q5');
+ if(['food','animals','art'].includes(section)&&human)
+   return {reject:true,reason:'명백한 종류 오류: 사람 Entity'};
+ // 사람 카테고리에서 명백히 국가/조직 자체인 경우만 제거. 불확실하면 보존.
+ if(['singers','athletes','people'].includes(section)&&['Q6256','Q43229'].some(x=>p31.includes(x)))
+   return {reject:true,reason:'명백한 종류 오류: 사람 항목이 아님'};
  if(section==='places'){
-   const countries=await e16CountryOfPlace(e);
-   if(countries.length){
-     if(countries.includes(sq)){score+=6;positive.push('실제 위치 국가 일치')}
-     else {negative.push('실제 위치 국가가 다른 나라');return {score:-99,positive,negative,uncertain,reject:true,labels,countries}}
-   }else uncertain.push('위치 국가 구조정보 부족');
+   const cs=await e17PlaceCountries(e),sq=e17SubjectQ();
+   if(cs.length&&sq&&!cs.includes(sq))
+     return {reject:true,reason:'명백한 위치 오류: 다른 국가의 장소'};
  }
-
- const relProps={
-  food:['P495','P17'], animals:['P183','P17','P495','P276'], places:['P17','P131'],
-  culture:['P17','P495','P276'], singers:['P27','P19'], athletes:['P27','P19','P54'],
-  people:['P27','P19'], art:['P495','P276']
- }[section]||[];
- let direct=[];
- for(const prop of relProps)for(const id of e16Ids(e,prop))if(id===sq)direct.push(prop);
- if(direct.length){score+=5;positive.push('주제 직접 구조관계: '+direct.join(', '))}
-
- // 설명상의 주제 증거는 보조점수만 부여. 없다고 탈락시키지 않는다.
- const text=((e.descriptions?.ko?.value||'')+' '+(e.descriptions?.en?.value||'')+' '+(ent.desc||'')).toLowerCase();
- const aliases=(p.aliases||[]).filter(x=>String(x).length>1);
- const words=aliases.filter(w=>text.includes(String(w).toLowerCase()));
- if(words.length){score+=2;positive.push('설명 속 주제 증거: '+words.slice(0,3).join(', '))}
- else uncertain.push('설명에서 주제관계 미확인');
-
- return {score,positive,negative,uncertain,reject:false,labels};
+ return {reject:false,reason:'명백한 반대증거 없음 — 5.2 후보 보존'};
 }
-function e16Reset(){
- if(!confirm('추천 캐시와 「전에 삭제한 항목」 기록을 초기화할까요?\\n직접 추가한 항목과 사진은 유지합니다.'))return;
- const rm=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i)||'';
-   if(/trial_candidates_used_|magicwand_photo_|candidate_|rebuilt_|place_desc_v30_|deleted/i.test(k))rm.push(k)}
- rm.forEach(k=>localStorage.removeItem(k)); CANDIDATE_CHECK_CACHE.clear(); E16_CACHE.clear();
- alert('실험 데이터 초기화 완료'); location.reload();
-}
-async function verifyCandidateTarget(section,target){
- const name=typeof target==='string'?target:target.name;
- const source=typeof target==='string'?'discover':(target.source||'discover');
- const k='e16|'+COUNTRY+'|'+section+'|'+normalizeItemName(name);
+async function verifyCandidateTarget52(section,target){
+ const name=typeof target==='string'?target:target.name, source=typeof target==='string'?'discover':(target.source||'discover');
+ const k=COUNTRY+'|'+section+'|'+normalizeItemName(name);
  if(CANDIDATE_CHECK_CACHE.has(k))return CANDIDATE_CHECK_CACHE.get(k);
  const promise=(async()=>{
-   try{
-     const ent=await resolveWikipediaEntity(name,COUNTRY,section,source); if(!ent)return null;
-     const ev=await e16Evidence(ent,COUNTRY,section); if(ev.reject)return null;
-     return {name:ent.displayName,title:ent.title,entityId:ent.entityId,pageId:ent.pageId,
-       desc:ent.desc,photo:ent.photo,quality:'evidence-ranked',sources:[ent.source],
-       evidenceScore:ev.score,diagnostic:{...(ent.diagnostic||{}),gate16:ev}};
-   }catch(err){
-     console.warn('E16 verify fallback',name,err);
-     // 검증 보조정보 오류 때문에 정상 후보 전체가 사라지지 않도록 Entity 확인만 재시도
-     try{
-       const ent=await resolveWikipediaEntity(name,COUNTRY,section,source); if(!ent)return null;
-       return {name:ent.displayName,title:ent.title,entityId:ent.entityId,pageId:ent.pageId,
-         desc:ent.desc,photo:ent.photo,quality:'evidence-unavailable',sources:[ent.source],
-         evidenceScore:0,diagnostic:{...(ent.diagnostic||{}),gate16:{score:0,positive:[],negative:[],uncertain:['보조검증 오류 — 후보 보존'],reject:false}}};
-     }catch(_){return null}
-   }
- })(); CANDIDATE_CHECK_CACHE.set(k,promise); return promise;
+   const e=await resolveWikipediaEntity(name,COUNTRY,section,source);if(!e)return null;
+   // 카드 한 장의 모든 핵심 정보는 같은 확정 Entity에서 온다.
+   return {name:e.displayName,title:e.title,entityId:e.entityId,pageId:e.pageId,desc:e.desc,photo:e.photo,quality:'entity-locked',sources:[e.source],diagnostic:e.diagnostic||{}};
+ })();CANDIDATE_CHECK_CACHE.set(k,promise);return promise;
 }
-async function verifyCandidateOnce(section,name){return verifyCandidateTarget(section,{name,source:'seed'})}
+async function verifyCandidateTarget(section,target){
+ const v=await verifyCandidateTarget52(section,target);
+ if(!v)return null;
+ try{
+  const c=await e17ExplicitContradiction(v,section);
+  v.diagnostic={...(v.diagnostic||{}),engine17:c};
+  if(c.reject)return null;
+ }catch(err){
+  // 보조검증 실패는 후보 탈락 사유가 아니다.
+  v.diagnostic={...(v.diagnostic||{}),engine17:{reject:false,reason:'보조검증 실패 — 5.2 후보 보존'}};
+ }
+ return v;
+}
 
+async function verifyCandidateOnce(section,name){return verifyCandidateTarget(section,{name,source:'seed'})}
 async function previewCandidate(s,target,box){
- const name=typeof target==='string'?target:target.name;
- const token=String(Date.now())+Math.random();
- box.dataset.previewToken=token;
+ const name=typeof target==='string'?target:target.name, token=String(Date.now())+Math.random();box.dataset.previewToken=token;
  box.innerHTML='<div class="preview-card">🔎 같은 대상을 가리키는 설명과 사진인지 확인하고 있어요…</div>';
  try{
-  const verified=(target&&typeof target==='object'&&target.entityId&&target.desc&&target.photo)
-    ? target
-    : await verifyCandidateTarget(s,target);
-  if(box.dataset.previewToken!==token)return;
-  if(!verified){
-    box.innerHTML='<div class="preview-card"><b>이 검색대상은 아직 확실한 하나의 대상으로 확인되지 않았습니다.</b><p>억지로 넣지 않고 다음 후보를 찾습니다.</p></div>';
-    return;
-  }
-
-  // 미리보기 순간 저장용 스냅샷을 완성한다.
-  const snapshot={
-    id:newItemId(),
-    name:String(name||verified.name||verified.title||'').trim(),
-    desc:String(verified.desc||'').trim(),
-    emoji:'⭐',
-    source:'recommended',
-    photoVerified:!!verified.photo,
-    photoRemote:verified.photo?String(verified.photo):'',
-    entityId:verified.entityId?String(verified.entityId):'',
-    entityTitle:verified.title?String(verified.title):'',
-    pageId:verified.pageId==null?'':String(verified.pageId),
-    sources:Array.isArray(verified.sources)?verified.sources.map(String):[],
-    evidenceScore:Number(verified.evidenceScore||0)
-  };
+  const verified=await verifyCandidateTarget(s,target);if(box.dataset.previewToken!==token)return;
+  if(!verified){box.innerHTML='<div class="preview-card"><b>이 검색대상은 아직 확실한 하나의 대상으로 확인되지 않았습니다.</b><p>억지로 넣지 않고 다음 후보를 찾습니다.</p></div>';return;}
   const d=verified.diagnostic||{};
-  const g=d.gate16||{};
   const srcLabel=d.candidateSource==='seed'?'기본 후보풀(seed)':'자동 Wikipedia 발견';
-
-  box.innerHTML=`<div class="preview-card">
-    <img src="${verified.photo||''}" alt="${esc(snapshot.name)}">
-    <h3>${esc(snapshot.name)}</h3>
-    <p>${esc(snapshot.desc)}</p>
-    <p class="note">확정 대상: ${esc(verified.title||snapshot.name)} · ${esc(verified.entityId||'-')} · 자료원: ${esc((verified.sources||[]).join(' + ')||'Wikipedia')}</p>
-    <div class="diagnostic-panel ${d.candidateSource==='seed'?'diag-seed':'diag-auto'}">
-      <h4>🩺 원인 진단 정보</h4>
-      <div class="diagnostic-grid">
-        <b>카테고리</b><span>${esc(SECTION_LABEL[s])}</span>
-        <b>후보 원천</b><span>${esc(srcLabel)}</span>
-        <b>확정된 제목</b><span>${esc(verified.title||snapshot.name)}</span>
-        <b>Entity ID</b><span>${esc(verified.entityId||'-')}</span>
-        <b>신뢰 점수</b><span>${esc(String(g.score??verified.evidenceScore??0))}</span>
-      </div>
-    </div>
-    <div class="preview-actions">
-      <button class="accept-candidate">⭐ 이 내용 그대로 추가하기</button>
-      <button class="skip-candidate">이번에는 넣지 않기</button>
-    </div>
-  </div>`;
-
-  const addBtn=box.querySelector('.accept-candidate');
-  const skipBtn=box.querySelector('.skip-candidate');
-
-  addBtn.onclick=()=>{
-    addBtn.disabled=true;
-    addBtn.textContent='저장 중…';
-    try{
-      const a=getCustom(s);
-      const duplicate=a.some(x=>
-        (snapshot.entityId && x.entityId===snapshot.entityId) ||
-        normalizeItemName(x.name||'')===normalizeItemName(snapshot.name)
-      );
-      if(duplicate){
-        addBtn.textContent='✓ 이미 추가되어 있어요';
-        return;
-      }
-      // 오직 localStorage 저장만 수행. 검색/검증/사진조회/renderSection 호출 없음.
-      a.push({...snapshot});
-      setCustom(s,a);
-      const ok=getCustom(s).some(x=>x.id===snapshot.id);
-      if(!ok)throw new Error('SAVE_VERIFY_FAILED');
-      try{markCandidate(s,snapshot.name)}catch(_){}
-      addBtn.textContent='✓ 추가 완료';
-      if(skipBtn)skipBtn.style.display='none';
-      const done=document.createElement('p');
-      done.className='note';
-      done.innerHTML='<b>내 백과사전에 저장되었습니다.</b><br>화면을 다시 열어도 그대로 남습니다.';
-      addBtn.parentElement.insertAdjacentElement('afterend',done);
-    }catch(e){
-      console.error('Engine16.2 add failed',e);
-      addBtn.disabled=false;
-      addBtn.textContent='⭐ 다시 추가하기';
-      alert(isQuotaError(e)
-        ? '저장공간이 부족합니다. 실험 데이터 초기화를 한 뒤 다시 시도해 주세요.'
-        : '추가 저장 오류: '+String(e?.name||e?.message||e));
-    }
-  };
-  skipBtn.onclick=()=>{box.dataset.previewToken='';box.innerHTML=''};
- }catch(e){
-   console.error('Engine16.2 preview failed',e);
-   if(box.dataset.previewToken===token){
-     box.innerHTML='<div class="preview-card"><b>미리보기를 만드는 중 오류가 있었습니다.</b><p>'+esc(String(e?.name||e?.message||e))+'</p></div>';
+  const diagText=[`카테고리: ${SECTION_LABEL[s]}`,`후보명: ${name}`,`후보 원천: ${srcLabel}`,`실제 검색어: ${d.query||'-'}`,`확정 제목: ${verified.title}`,`Entity: ${verified.entityId}`,`이름점수: ${d.identityScore??'-'}`,`주제증거: ${d.subjectEvidence??'-'} [${(d.subjectTerms||[]).join(', ')}]`,`카테고리증거: ${d.categoryEvidence??'-'} [${(d.categoryTerms||[]).join(', ')}]`,`엔진17: ${d.engine17?.reason||'5.2 기준 보존'}`].join('\n');
+  box.innerHTML=`<div class="preview-card"><img src="${verified.photo}" alt="${esc(name)}"><h3>${esc(name)}</h3><p>${esc(verified.desc)}</p><p class="note">확정 대상: ${esc(verified.title)} · ${esc(verified.entityId)} · 자료원: ${esc(verified.sources.join(' + '))}</p><div class="diagnostic-panel ${d.candidateSource==='seed'?'diag-seed':'diag-auto'}"><h4>🩺 원인 진단 정보</h4><div class="diagnostic-grid"><b>카테고리</b><span>${esc(SECTION_LABEL[s])}</span><b>후보 원천</b><span>${esc(srcLabel)}</span><b>실제 검색어</b><span>${esc(d.query||'-')}</span><b>확정된 제목</b><span>${esc(verified.title)}</span><b>Entity ID</b><span>${esc(verified.entityId)}</span><b>이름 일치점수</b><span>${esc(String(d.identityScore??'-'))}</span><b>주제 증거</b><span>${esc(String(d.subjectEvidence??'-'))} · ${esc((d.subjectTerms||[]).join(', ')||'없음')}</span><b>카테고리 증거</b><span>${esc(String(d.categoryEvidence??'-'))} · ${esc((d.categoryTerms||[]).join(', ')||'없음')}</span></div><button class="diag-copy">진단정보 복사</button></div><div class="preview-actions"><button class="accept-candidate">⭐ 이 내용 그대로 추가하기</button><button class="skip-candidate">이번에는 넣지 않기</button></div></div>`;
+  box.querySelector('.diag-copy').onclick=async()=>{try{await navigator.clipboard.writeText(diagText);alert('진단정보를 복사했습니다.')}catch(e){prompt('아래 진단정보를 복사해 주세요.',diagText)}};
+  box.querySelector('.accept-candidate').onclick=async()=>{
+   const btn=box.querySelector('.accept-candidate');if(btn)btn.disabled=true;
+   // 미리보기에서 이미 확정된 Entity snapshot만 저장한다. 추가 단계에서는 검색/사진검증을 다시 하지 않는다.
+   let saved=false;
+   try{
+    const a=getCustom(s);if(hasIdentity(name,a)){alert('이미 같은 항목이 있습니다.');if(btn)btn.disabled=false;return;}
+    const item={
+      id:newItemId(),
+      name:String(name||verified.name||verified.title||'').trim(),
+      desc:String(verified.desc||'').trim(),
+      emoji:'⭐',source:'recommended',photoVerified:!!verified.photo,
+      photoRemote:verified.photo?String(verified.photo):'',
+      entityId:verified.entityId?String(verified.entityId):'',
+      entityTitle:verified.title?String(verified.title):'',
+      pageId:verified.pageId==null?'':String(verified.pageId),
+      sources:Array.isArray(verified.sources)?verified.sources.map(String):[]
+    };
+    if(!item.name||!item.desc)throw new Error('snapshot incomplete');
+    a.push(item);setCustom(s,a);
+    // 실제 저장되었는지 즉시 확인한다.
+    saved=getCustom(s).some(x=>x.id===item.id);
+    if(!saved)throw new Error('local save failed');
+    box.innerHTML='<div class="preview-card"><b>✓ 내 백과사전에 추가했어요.</b></div>';
+   }catch(e){
+    console.error('card save failed',e);
+    const msg=isQuotaError(e)?'기기의 웹 저장공간이 가득 차 저장하지 못했습니다. 검색 임시자료를 정리한 뒤에도 공간이 부족합니다.':'카드 저장 중 오류가 발생했습니다. 오류 종류: '+(e?.name||'알 수 없음');
+    alert(msg);if(btn)btn.disabled=false;return;
    }
- }
+   // 화면 갱신 실패를 저장 실패로 오해하지 않도록 저장과 렌더링 오류를 분리한다.
+   try{await renderSection(s)}catch(e){
+    console.error('render after save failed',e);
+    box.innerHTML='<div class="preview-card"><b>✓ 저장은 완료되었습니다.</b><p>화면 갱신만 지연되고 있어요. 다른 카테고리로 이동했다 돌아오면 카드가 보입니다.</p></div>';
+   }
+  };
+  box.querySelector('.skip-candidate').onclick=()=>{box.dataset.previewToken='';box.innerHTML=''};
+ }catch(e){if(box.dataset.previewToken===token)box.innerHTML='<div class="preview-card"><b>확인 중 오류가 있었습니다.</b><p>다른 후보를 선택해 주세요.</p></div>';}
 }
 async function renderCandidates(s,host){
  const targets=await discoverCandidateTargets(COUNTRY,s);if(!targets.length)return;
@@ -1201,9 +1089,4 @@ async function updateBackupLast(){const name=localStorage.getItem('last_backup_n
 const backupModal=document.getElementById('backupModal');document.getElementById('backupBtn').onclick=()=>{backupModal.classList.remove('hidden');updateBackupLast()};document.getElementById('backupClose').onclick=()=>backupModal.classList.add('hidden');backupModal.onclick=e=>{if(e.target===backupModal)backupModal.classList.add('hidden')};document.getElementById('makeBackup').onclick=makeBackupFile;document.getElementById('restoreLast').onclick=async()=>{const d=await loadLastBackup();if(!d){alert('이 기기에 기억된 마지막 백업이 없습니다. 다른 백업 파일을 선택해 주세요.');return}const n=localStorage.getItem('last_backup_name')||'마지막 백업';if(confirm('「'+n+'」으로 복원할까요?\n현재 수정 내용과 등록 사진은 이 백업 시점의 내용으로 바뀝니다.'))await applyBackup(d)};document.getElementById('chooseBackup').onclick=()=>document.getElementById('backupFileInput').click();document.getElementById('backupFileInput').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;try{const d=JSON.parse(await f.text());if(!validBackup(d))throw new Error();if(confirm('선택한 백업 파일\n「'+f.name+'」\n으로 복원할까요?')){await saveLastBackup(d);localStorage.setItem('last_backup_name',f.name);localStorage.setItem('last_backup_at',d.createdAt||new Date().toISOString());await applyBackup(d)}}catch(err){alert('이 백업 파일을 읽을 수 없습니다. 세계 나라 백과사전에서 만든 JSON 백업 파일인지 확인해 주세요.')}finally{e.target.value=''}};
 
 if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));}
-
-window.addEventListener('unhandledrejection',e=>{
- const msg=String(e?.reason?.message||e?.reason||'');
- if(/candidate|preview|verify|quota|storage/i.test(msg)) console.warn('Engine16 guarded async error',e.reason);
-});
 </script></body></html>
