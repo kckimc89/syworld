@@ -11,7 +11,7 @@ button.improve-desc{background:#e7f4ff;border-color:#87bde8}button.last-confirme
 .candidate-box{margin-top:14px;padding:14px;border:1px dashed #9db8d8;border-radius:14px;background:#f7fbff}.candidate-box h3{margin:0 0 6px}.candidate-chips{display:flex;gap:7px;flex-wrap:wrap}.candidate-chip{border:1px solid #b8cbe1;background:white;border-radius:999px;padding:7px 10px;font-weight:850}.candidate-chip.added{opacity:.38;background:#eef1f4;color:#667085;border-color:#d8dee8}.candidate-chip.available{opacity:1}.candidate-legend{font-size:.82rem;color:#68758a;margin:4px 0 9px}.preview-card{margin-top:12px;border:2px solid #8bb2df;border-radius:15px;padding:13px;background:white}.preview-card img{width:100%;max-height:260px;object-fit:contain;background:#eef1f4;border-radius:10px}.preview-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.preview-actions button{border:1px solid #cbd5e1;background:white;border-radius:10px;padding:8px 11px;font-weight:800}.discover{background:#fff7d8;border:1px solid #ead39d;border-radius:12px;padding:9px 11px;margin-bottom:12px}.trial-note{background:#eaf8ef;border:1px solid #b9dfc5;border-radius:14px;padding:12px;margin:10px 0 18px}
 
 .diagnostic-panel{margin-top:12px;padding:12px;border:2px solid #f0b44c;border-radius:13px;background:#fff9e8;font-size:.88rem;line-height:1.55}.diagnostic-panel h4{margin:0 0 7px;color:#7a4b00}.diagnostic-grid{display:grid;grid-template-columns:max-content 1fr;gap:4px 9px}.diagnostic-grid b{color:#5b6472}.diag-seed{background:#eef8ff}.diag-auto{background:#fff3e8}.diag-copy{margin-top:9px;border:1px solid #d5a64c;background:white;border-radius:9px;padding:7px 10px;font-weight:800}
-</style></head><body><div style="position:fixed;left:12px;bottom:14px;z-index:9998;background:#f7fbff;border:1px solid #a9cbe8;border-radius:14px;padding:8px 11px;font-size:12px;font-weight:800">🧪 V5.2-R1 · 후보수 보존 + 동일 Entity 사진/설명</div><header id="header"><div class="head"><div><div class="brandline"><div class="brand" id="brand">매직 백과</div><button class="title-edit" id="titleEdit" title="제목 바꾸기">✏️ 제목</button><button class="title-edit" id="backupBtn" title="백업과 복원">💾 백업</button></div><div class="country-title" id="countryTitle"></div></div><button class="back hidden" id="backBtn">나라 목록으로</button></div><nav id="nav" class="hidden"><a href="#basic">기본정보</a><a href="#flag">국기</a><a href="#capital">수도</a><a href="#nature">자연·기후</a><a href="#language">언어</a><a href="#food">음식</a><a href="#animals">동식물</a><a href="#places">명소</a><a href="#culture">문화</a><a href="#singers">가수</a><a href="#athletes">운동선수</a><a href="#people">역사인물</a><a href="#art">예술작품</a><a href="#history">역사</a><a href="#sources">자료</a></nav></header><main><div id="home"><div class="home-tools"><div class="hero"><h1>세계 여러 나라를 탐험해 보아요!</h1><p>국기·음식·동물·명소를 만나며 세계 여행을 떠나요.</p><div class="trial-note"><b>🧭 요술방망이 엔진 4 · 안정형 범용 검색</b> · 스페인, 일본, 미국에서 후보를 골라 아이가 직접 백과사전을 채워 보아요.</div><div class="search"><input id="search" placeholder="🔎 나라 이름을 찾아보세요 (예: 일본, 브라질)"></div></div><div style="display:flex;gap:8px;align-items:center"><div class="continents" id="continentChips" style="flex:1"></div><button class="fav-toggle" id="favOnly">★ 즐겨찾기</button></div></div><div class="country-grid" id="countryGrid"></div></div><div id="detail" class="hidden">
+</style></head><body><div style="position:fixed;left:12px;bottom:14px;z-index:9998;background:#f6fbf4;border:1px solid #a8c99b;border-radius:14px;padding:8px 11px;font-size:12px;font-weight:800">🧪 V5.2-R2 · 카테고리 안에서 동명이의 재탐색 + 후보확장</div><header id="header"><div class="head"><div><div class="brandline"><div class="brand" id="brand">매직 백과</div><button class="title-edit" id="titleEdit" title="제목 바꾸기">✏️ 제목</button><button class="title-edit" id="backupBtn" title="백업과 복원">💾 백업</button></div><div class="country-title" id="countryTitle"></div></div><button class="back hidden" id="backBtn">나라 목록으로</button></div><nav id="nav" class="hidden"><a href="#basic">기본정보</a><a href="#flag">국기</a><a href="#capital">수도</a><a href="#nature">자연·기후</a><a href="#language">언어</a><a href="#food">음식</a><a href="#animals">동식물</a><a href="#places">명소</a><a href="#culture">문화</a><a href="#singers">가수</a><a href="#athletes">운동선수</a><a href="#people">역사인물</a><a href="#art">예술작품</a><a href="#history">역사</a><a href="#sources">자료</a></nav></header><main><div id="home"><div class="home-tools"><div class="hero"><h1>세계 여러 나라를 탐험해 보아요!</h1><p>국기·음식·동물·명소를 만나며 세계 여행을 떠나요.</p><div class="trial-note"><b>🧭 요술방망이 엔진 4 · 안정형 범용 검색</b> · 스페인, 일본, 미국에서 후보를 골라 아이가 직접 백과사전을 채워 보아요.</div><div class="search"><input id="search" placeholder="🔎 나라 이름을 찾아보세요 (예: 일본, 브라질)"></div></div><div style="display:flex;gap:8px;align-items:center"><div class="continents" id="continentChips" style="flex:1"></div><button class="fav-toggle" id="favOnly">★ 즐겨찾기</button></div></div><div class="country-grid" id="countryGrid"></div></div><div id="detail" class="hidden">
 <section id="basic"><h2>1. 기본정보</h2><div class="info-grid" id="infoGrid"></div><div class="compare" id="compare"></div><div id="intro"></div></section>
 <section id="flag"><h2>2. 국기</h2><div class="flagbox"><img class="flagimg" id="flagImg"></div><p id="flagDesc"></p><p class="note">국기 이미지: Wikimedia Commons 공개자료</p></section>
 <section id="capital"><h2>3. 수도 설명</h2><h3 id="capitalName"></h3><div id="capitalDesc"></div></section>
@@ -522,7 +522,7 @@ async function discoverMet(subjectId,section,limit=18){
  try{const u='https://collectionapi.metmuseum.org/public/collection/v1/search?hasImages=true&q='+encodeURIComponent(p.label);const r=await fetch(u);if(!r.ok)return[];const j=await r.json();for(const id of (j.objectIDs||[]).slice(0,Math.min(limit,10))){try{const rr=await fetch('https://collectionapi.metmuseum.org/public/collection/v1/objects/'+id);if(!rr.ok)continue;const x=await rr.json();if(x.title)out.push({name:x.title,source:'metmuseum',met:x});}catch(e){}}}catch(e){}
  return out;
 }
-async function discoverCandidateTargets(subjectId,section){
+async function discoverCandidateTargets52(subjectId,section){
  // Engine 5: 발견과 확정을 분리한다. 기존 콘텐츠 팩은 넉넉한 검색대상 원천일 뿐이며,
  // 실제 후보가 되려면 아래의 공통 Entity 확정 단계를 반드시 통과해야 한다.
  const seed=[...new Set(CANDIDATES[subjectId]?.[section]||[])].map(name=>({name,source:'seed'}));
@@ -553,6 +553,25 @@ function identityScore(wanted,title){
  const a=normalizeItemName(wanted),b=normalizeItemName(title);if(!a||!b)return 0;
  if(a===b)return 20;if(a.includes(b)||b.includes(a))return 12;return 0;
 }
+async function discoverCandidateTargets(subjectId,section){
+ const base=await discoverCandidateTargets52(subjectId,section);
+ const subject=({ES:'스페인',JP:'일본',US:'미국'})[subjectId]||'',h=R2_CTX[section]||[];
+ const extra=[];
+ for(const q of [`${subject} ${h[0]||''}`,`${subject} ${h[1]||h[0]||''}`]){
+  try{
+   const u='https://ko.wikipedia.org/w/api.php?action=query&list=search&srlimit=20&srsearch='+encodeURIComponent(q)+'&format=json&origin=*';
+   const r=await fetch(u);if(!r.ok)continue;const j=await r.json();
+   for(const x of (j.query?.search||[]))extra.push({name:x.title,source:'r2-expand'});
+  }catch(_){}
+ }
+ const out=[],seen=new Set();
+ for(const x of [...base,...extra]){
+  const n=typeof x==='string'?x:x.name,k=normalizeItemName(n);
+  if(!k||seen.has(k))continue;seen.add(k);out.push(x);
+ }
+ return out;
+}
+
 async function resolveWikipediaEntity(name,subjectId,section,source='discover'){
  const p=subjectProfile(subjectId), queries=[name,`${name} ${p.label}`]; let best=null;
  for(const q of queries){
@@ -893,22 +912,55 @@ async function genericDescription(name,subjectId,section){
 }
 const CANDIDATE_CHECK_CACHE=new Map();
 const CANDIDATE_TARGET=8;
-// V5.2-R1: V5.2 discovery untouched; repair description/photo from exact confirmed Entity only.
-const R1C=new Map();
-async function r1Snap(v){
- const id=v?.entityId;if(!/^Q\d+$/.test(id||''))return v;
- if(R1C.has(id))return {...v,...R1C.get(id)};
- try{
-  let u='https://www.wikidata.org/w/api.php?action=wbgetentities&ids='+id+'&props=sitelinks&sitefilter=kowiki&format=json&origin=*';
-  let r=await fetch(u),j=await r.json(),title=j.entities?.[id]?.sitelinks?.kowiki?.title;if(!title)return v;
-  u='https://ko.wikipedia.org/w/api.php?action=query&prop=extracts|pageimages&exintro=1&explaintext=1&pithumbsize=1000&titles='+encodeURIComponent(title)+'&format=json&origin=*';
-  r=await fetch(u);j=await r.json();const x=Object.values(j.query?.pages||{})[0];if(!x)return v;
-  const q={entityTitle:x.title||title,pageId:x.pageid||v.pageId};
-  const d=String(x.extract||'').trim();if(d.length>=35)q.desc=d.length>500?d.slice(0,500).replace(/\s+\S*$/,'')+'…':d;
-  if(x.thumbnail?.source){q.photo=x.thumbnail.source;q.photoRemote=x.thumbnail.source;q.photoVerified=true}
-  q.diagnostic={...(v.diagnostic||{}),r1:{sameEntity:true,entityId:id,title:x.title||title}};
-  R1C.set(id,q);return {...v,...q}
- }catch(_){return v}
+
+// ===== V5.2-R2: category-aware homonym repair, candidate preservation =====
+// 후보명은 버리지 않는다. 같은 이름의 다른 Entity가 있으면 카테고리 문맥으로 재탐색한다.
+const R2_CTX={
+ food:['음식','요리','food','dish','cuisine'],
+ animals:['동물','식물','나무','꽃','종','포유류','조류','파충류','어류','곤충','과','속','animal','plant','tree','species'],
+ places:['도시','마을','건축물','성당','궁전','박물관','광장','공원','산','섬','유적','장소','city','building','museum','place'],
+ culture:['문화','전통','축제','춤','음악','언어','의식','culture','tradition','festival','dance','music','language'],
+ singers:['가수','성악가','음악가','싱어송라이터','singer','musician'],
+ athletes:['선수','축구','테니스','농구','운동선수','스포츠','player','athlete','football','tennis','basketball'],
+ people:['인물','왕','여왕','화가','작가','탐험가','정치인','군인','people','king','queen','painter','writer'],
+ art:['작품','회화','그림','조각','소설','건축','painting','artwork','sculpture','work']
+};
+const R2_BAD={
+ animals:['그림','회화','작품','화가','오일','기름','painting','artwork','oil'],
+ food:['화가','그림','회화','도시','국가','painter','painting','country'],
+ places:['음식','요리','가수','선수','food','dish','singer','athlete'],
+ singers:['국가','도시','음식','그림','country','city','food','painting'],
+ athletes:['국가','도시','음식','그림','country','city','food','painting'],
+ art:['국가','도시','음식','선수','country','city','food','athlete']
+};
+function r2Text(v){return `${v?.name||''} ${v?.title||''} ${v?.entityTitle||''} ${v?.desc||''}`.toLowerCase()}
+function r2Fit(v,s){
+ const x=r2Text(v),good=(R2_CTX[s]||[]).filter(k=>x.includes(k.toLowerCase())).length,
+ bad=(R2_BAD[s]||[]).filter(k=>x.includes(k.toLowerCase())).length;
+ return good*3-bad*4;
+}
+async function r2ResolveVariant(name,section){
+ const hints=R2_CTX[section]||[], subject=({ES:'스페인',JP:'일본',US:'미국'})[COUNTRY]||'';
+ const queries=[`${name} ${hints[0]||''}`,`${name} ${hints[1]||hints[0]||''}`,`${subject} ${name} ${hints[0]||''}`];
+ let best=null,bestScore=-999;
+ for(const q of queries){
+  try{
+   const u='https://ko.wikipedia.org/w/api.php?action=query&list=search&srlimit=6&srsearch='+encodeURIComponent(q)+'&format=json&origin=*';
+   const r=await fetch(u);if(!r.ok)continue;const j=await r.json();
+   for(const hit of (j.query?.search||[])){
+    const title=hit.title;
+    const pu='https://ko.wikipedia.org/w/api.php?action=query&prop=extracts|pageimages|pageprops&ppprop=wikibase_item&exintro=1&explaintext=1&pithumbsize=1000&titles='+encodeURIComponent(title)+'&format=json&origin=*';
+    const pr=await fetch(pu);if(!pr.ok)continue;const pj=await pr.json(),p=Object.values(pj.query?.pages||{})[0];
+    if(!p||!p.extract)continue;
+    const cand={name,entityTitle:p.title||title,title:p.title||title,pageId:p.pageid||'',entityId:p.pageprops?.wikibase_item||'',
+      desc:String(p.extract).trim(),photo:p.thumbnail?.source||'',photoRemote:p.thumbnail?.source||'',photoVerified:!!p.thumbnail?.source,
+      sources:['Wikipedia'],diagnostic:{r2:{query:q,homonymRepair:true}}};
+    const sc=r2Fit(cand,section)+(normalizeItemName(title).includes(normalizeItemName(name))?3:0)+(p.thumbnail?.source?2:0);
+    if(sc>bestScore){bestScore=sc;best=cand}
+   }
+  }catch(_){}
+ }
+ return bestScore>=3?best:null;
 }
 async function verifyCandidateTarget52(section,target){
  const name=typeof target==='string'?target:target.name, source=typeof target==='string'?'discover':(target.source||'discover');
@@ -921,8 +973,20 @@ async function verifyCandidateTarget52(section,target){
  })();CANDIDATE_CHECK_CACHE.set(k,promise);return promise;
 }
 async function verifyCandidateTarget(section,target){
- const v=await verifyCandidateTarget52(section,target);if(!v)return null;
- return await r1Snap(v);
+ const v=await verifyCandidateTarget52(section,target);
+ if(!v)return null;
+ const score=r2Fit(v,section);
+ // Only repair clear mismatch; otherwise preserve V5.2 exactly.
+ if(score<0){
+   const name=(typeof target==='string'?target:(target?.name||v.name));
+   const alt=await r2ResolveVariant(name,section);
+   if(alt){
+     alt.diagnostic={...(v.diagnostic||{}),...(alt.diagnostic||{}),r2:{...(alt.diagnostic?.r2||{}),originalScore:score,repaired:true}};
+     return alt;
+   }
+ }
+ v.diagnostic={...(v.diagnostic||{}),r2:{originalScore:score,repaired:false}};
+ return v;
 }
 
 async function verifyCandidateOnce(section,name){return verifyCandidateTarget(section,{name,source:'seed'})}
