@@ -395,7 +395,7 @@ function openCountry(code){COUNTRY=code;let c=countries[code];document.getElemen
 document.getElementById('backBtn').onclick=()=>{document.getElementById('detail').classList.add('hidden');document.getElementById('home').classList.remove('hidden');document.getElementById('nav').classList.add('hidden');document.getElementById('backBtn').classList.add('hidden');document.getElementById('countryTitle').textContent='';window.scrollTo(0,0)};
 // ===== 요술방망이 엔진 2 테스트용: 삭제 PIN 일시 중지 =====
 function requireDeletePin(){ return true; }
-const DATA_NS='magic_engine5_';
+const DATA_NS='magic_engine5_'; // 5.1은 같은 저장공간을 사용해 엔진5 시험 데이터를 유지
 function key(section){return `${DATA_NS}custom_${COUNTRY}_${section}`}
 function editKey(s,id){return `${DATA_NS}edit_${COUNTRY}_${s}_${id}`}
 function confirmedDescKey(country,s,id){return `${DATA_NS}confirmed_${country}_${s}_${id}`}
@@ -405,7 +405,7 @@ function setDeletedBase(s,a){localStorage.setItem(deletedBaseKey(s),JSON.stringi
 function getCustom(s){try{return JSON.parse(localStorage.getItem(key(s))||'[]')}catch{return[]}}
 function setCustom(s,a){localStorage.setItem(key(s),JSON.stringify(a))}
 function esc(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
-function newItemId(){return 'u_'+Date.now().toString(36)+'_'+(crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2))}
+function newItemId(){try{if(globalThis.crypto&&typeof globalThis.crypto.randomUUID==='function')return 'u_'+Date.now().toString(36)+'_'+globalThis.crypto.randomUUID()}catch(e){}return 'u_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2)+'_'+Math.random().toString(36).slice(2)}
 
 // v33: 상투적인 학습 유도 문장 제거 + 문화 설명 1차 정밀 보강
 // 사진 시스템과 저장소는 변경하지 않는다.
@@ -893,7 +893,38 @@ async function previewCandidate(s,target,box){
   const verified=await verifyCandidateTarget(s,target);if(box.dataset.previewToken!==token)return;
   if(!verified){box.innerHTML='<div class="preview-card"><b>이 검색대상은 아직 확실한 하나의 대상으로 확인되지 않았습니다.</b><p>억지로 넣지 않고 다음 후보를 찾습니다.</p></div>';return;}
   box.innerHTML=`<div class="preview-card"><img src="${verified.photo}" alt="${esc(name)}"><h3>${esc(name)}</h3><p>${esc(verified.desc)}</p><p class="note">확정 대상: ${esc(verified.title)} · ${esc(verified.entityId)} · 자료원: ${esc(verified.sources.join(' + '))}</p><div class="preview-actions"><button class="accept-candidate">⭐ 이 내용 그대로 추가하기</button><button class="skip-candidate">이번에는 넣지 않기</button></div></div>`;
-  box.querySelector('.accept-candidate').onclick=async()=>{const btn=box.querySelector('.accept-candidate');if(btn)btn.disabled=true;try{const a=getCustom(s);if(hasIdentity(name,a)){alert('이미 같은 항목이 있습니다.');return;}const id=newItemId();a.push({id,name,desc:verified.desc,emoji:'⭐',source:'recommended',photoVerified:true,photoRemote:verified.photo,entityId:verified.entityId,entityTitle:verified.title,pageId:verified.pageId,sources:verified.sources});setCustom(s,a);box.innerHTML='';await renderSection(s)}catch(e){alert('추가 중 오류가 발생했습니다. 다시 시도해 주세요.');if(btn)btn.disabled=false;}};
+  box.querySelector('.accept-candidate').onclick=async()=>{
+   const btn=box.querySelector('.accept-candidate');if(btn)btn.disabled=true;
+   // 미리보기에서 이미 확정된 Entity snapshot만 저장한다. 추가 단계에서는 검색/사진검증을 다시 하지 않는다.
+   let saved=false;
+   try{
+    const a=getCustom(s);if(hasIdentity(name,a)){alert('이미 같은 항목이 있습니다.');if(btn)btn.disabled=false;return;}
+    const item={
+      id:newItemId(),
+      name:String(name||verified.name||verified.title||'').trim(),
+      desc:String(verified.desc||'').trim(),
+      emoji:'⭐',source:'recommended',photoVerified:!!verified.photo,
+      photoRemote:verified.photo?String(verified.photo):'',
+      entityId:verified.entityId?String(verified.entityId):'',
+      entityTitle:verified.title?String(verified.title):'',
+      pageId:verified.pageId==null?'':String(verified.pageId),
+      sources:Array.isArray(verified.sources)?verified.sources.map(String):[]
+    };
+    if(!item.name||!item.desc)throw new Error('snapshot incomplete');
+    a.push(item);setCustom(s,a);
+    // 실제 저장되었는지 즉시 확인한다.
+    saved=getCustom(s).some(x=>x.id===item.id);
+    if(!saved)throw new Error('local save failed');
+    box.innerHTML='<div class="preview-card"><b>✓ 내 백과사전에 추가했어요.</b></div>';
+   }catch(e){
+    alert('저장하지 못했습니다. 기기 저장공간을 확인한 뒤 다시 시도해 주세요.');if(btn)btn.disabled=false;return;
+   }
+   // 화면 갱신 실패를 저장 실패로 오해하지 않도록 저장과 렌더링 오류를 분리한다.
+   try{await renderSection(s)}catch(e){
+    console.error('render after save failed',e);
+    box.innerHTML='<div class="preview-card"><b>✓ 저장은 완료되었습니다.</b><p>화면 갱신만 지연되고 있어요. 다른 카테고리로 이동했다 돌아오면 카드가 보입니다.</p></div>';
+   }
+  };
   box.querySelector('.skip-candidate').onclick=()=>{box.dataset.previewToken='';box.innerHTML=''};
  }catch(e){if(box.dataset.previewToken===token)box.innerHTML='<div class="preview-card"><b>확인 중 오류가 있었습니다.</b><p>다른 후보를 선택해 주세요.</p></div>';}
 }
