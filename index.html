@@ -9,7 +9,7 @@
 .backup-modal{position:fixed;inset:0;background:#0006;z-index:100;display:flex;align-items:center;justify-content:center;padding:18px}.backup-panel{width:min(560px,100%);background:#fff;border-radius:20px;padding:22px;box-shadow:0 15px 50px #0004}.backup-panel h2{margin:0 0 8px}.backup-panel p{margin:7px 0;color:#536276}.backup-actions{display:grid;gap:10px;margin-top:16px}.backup-actions button{border:1px solid #bfd0e3;border-radius:13px;padding:12px 14px;font-weight:850;background:#eef5ff;text-align:left}.backup-actions button.restore-last{background:#fff7d8;border-color:#ead39d}.backup-actions button.choose-backup{background:#e9f8ee;border-color:#bfe1c9}.backup-close{float:right;border:0;background:#eef1f4;border-radius:999px;width:36px;height:36px;font-size:1.1rem}.backup-last{background:#f7f8fa;border-radius:12px;padding:10px 12px;margin-top:12px;font-size:.92rem}.backup-warning{font-size:.84rem!important;color:#7a5a00!important;background:#fff9e8;border-radius:10px;padding:8px 10px}.brandline{flex-wrap:wrap}
 button.improve-desc{background:#e7f4ff;border-color:#87bde8}button.last-confirmed{background:#fff3d8;border-color:#e3bd65}
 .candidate-box{margin-top:14px;padding:14px;border:1px dashed #9db8d8;border-radius:14px;background:#f7fbff}.candidate-box h3{margin:0 0 6px}.candidate-chips{display:flex;gap:7px;flex-wrap:wrap}.candidate-chip{border:1px solid #b8cbe1;background:white;border-radius:999px;padding:7px 10px;font-weight:850}.candidate-chip.added{opacity:.38;background:#eef1f4;color:#667085;border-color:#d8dee8}.candidate-chip.available{opacity:1}.candidate-legend{font-size:.82rem;color:#68758a;margin:4px 0 9px}.preview-card{margin-top:12px;border:2px solid #8bb2df;border-radius:15px;padding:13px;background:white}.preview-card img{width:100%;max-height:260px;object-fit:contain;background:#eef1f4;border-radius:10px}.preview-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.preview-actions button{border:1px solid #cbd5e1;background:white;border-radius:10px;padding:8px 11px;font-weight:800}.discover{background:#fff7d8;border:1px solid #ead39d;border-radius:12px;padding:9px 11px;margin-bottom:12px}.trial-note{background:#eaf8ef;border:1px solid #b9dfc5;border-radius:14px;padding:12px;margin:10px 0 18px}
-</style></head><body><header id="header"><div class="head"><div><div class="brandline"><div class="brand" id="brand">매직 백과</div><button class="title-edit" id="titleEdit" title="제목 바꾸기">✏️ 제목</button><button class="title-edit" id="backupBtn" title="백업과 복원">💾 백업</button></div><div class="country-title" id="countryTitle"></div></div><button class="back hidden" id="backBtn">나라 목록으로</button></div><nav id="nav" class="hidden"><a href="#basic">기본정보</a><a href="#flag">국기</a><a href="#capital">수도</a><a href="#nature">자연·기후</a><a href="#language">언어</a><a href="#food">음식</a><a href="#animals">동식물</a><a href="#places">명소</a><a href="#culture">문화</a><a href="#singers">가수</a><a href="#athletes">운동선수</a><a href="#people">역사인물</a><a href="#art">예술작품</a><a href="#history">역사</a><a href="#sources">자료</a></nav></header><main><div id="home"><div class="home-tools"><div class="hero"><h1>세계 여러 나라를 탐험해 보아요!</h1><p>국기·음식·동물·명소를 만나며 세계 여행을 떠나요.</p><div class="trial-note"><b>🧭 요술방망이 엔진 2 · 검색개선판</b> · 스페인, 일본, 미국에서 후보를 골라 아이가 직접 백과사전을 채워 보아요.</div><div class="search"><input id="search" placeholder="🔎 나라 이름을 찾아보세요 (예: 일본, 브라질)"></div></div><div style="display:flex;gap:8px;align-items:center"><div class="continents" id="continentChips" style="flex:1"></div><button class="fav-toggle" id="favOnly">★ 즐겨찾기</button></div></div><div class="country-grid" id="countryGrid"></div></div><div id="detail" class="hidden">
+</style></head><body><header id="header"><div class="head"><div><div class="brandline"><div class="brand" id="brand">매직 백과</div><button class="title-edit" id="titleEdit" title="제목 바꾸기">✏️ 제목</button><button class="title-edit" id="backupBtn" title="백업과 복원">💾 백업</button></div><div class="country-title" id="countryTitle"></div></div><button class="back hidden" id="backBtn">나라 목록으로</button></div><nav id="nav" class="hidden"><a href="#basic">기본정보</a><a href="#flag">국기</a><a href="#capital">수도</a><a href="#nature">자연·기후</a><a href="#language">언어</a><a href="#food">음식</a><a href="#animals">동식물</a><a href="#places">명소</a><a href="#culture">문화</a><a href="#singers">가수</a><a href="#athletes">운동선수</a><a href="#people">역사인물</a><a href="#art">예술작품</a><a href="#history">역사</a><a href="#sources">자료</a></nav></header><main><div id="home"><div class="home-tools"><div class="hero"><h1>세계 여러 나라를 탐험해 보아요!</h1><p>국기·음식·동물·명소를 만나며 세계 여행을 떠나요.</p><div class="trial-note"><b>🧭 요술방망이 엔진 4 · 안정형 범용 검색</b> · 스페인, 일본, 미국에서 후보를 골라 아이가 직접 백과사전을 채워 보아요.</div><div class="search"><input id="search" placeholder="🔎 나라 이름을 찾아보세요 (예: 일본, 브라질)"></div></div><div style="display:flex;gap:8px;align-items:center"><div class="continents" id="continentChips" style="flex:1"></div><button class="fav-toggle" id="favOnly">★ 즐겨찾기</button></div></div><div class="country-grid" id="countryGrid"></div></div><div id="detail" class="hidden">
 <section id="basic"><h2>1. 기본정보</h2><div class="info-grid" id="infoGrid"></div><div class="compare" id="compare"></div><div id="intro"></div></section>
 <section id="flag"><h2>2. 국기</h2><div class="flagbox"><img class="flagimg" id="flagImg"></div><p id="flagDesc"></p><p class="note">국기 이미지: Wikimedia Commons 공개자료</p></section>
 <section id="capital"><h2>3. 수도 설명</h2><h3 id="capitalName"></h3><div id="capitalDesc"></div></section>
@@ -395,7 +395,7 @@ function openCountry(code){COUNTRY=code;let c=countries[code];document.getElemen
 document.getElementById('backBtn').onclick=()=>{document.getElementById('detail').classList.add('hidden');document.getElementById('home').classList.remove('hidden');document.getElementById('nav').classList.add('hidden');document.getElementById('backBtn').classList.add('hidden');document.getElementById('countryTitle').textContent='';window.scrollTo(0,0)};
 // ===== 요술방망이 엔진 2 테스트용: 삭제 PIN 일시 중지 =====
 function requireDeletePin(){ return true; }
-const DATA_NS='magic_wand_engine1_';
+const DATA_NS='magic_engine4_';
 function key(section){return `${DATA_NS}custom_${COUNTRY}_${section}`}
 function editKey(s,id){return `${DATA_NS}edit_${COUNTRY}_${s}_${id}`}
 function confirmedDescKey(country,s,id){return `${DATA_NS}confirmed_${country}_${s}_${id}`}
@@ -513,7 +513,7 @@ async function discoverCandidateTargets(subjectId,section){
  if(sourceEnabled('metmuseum',section))jobs.push(discoverMet(subjectId,section,12));
  const found=(await Promise.all(jobs)).flat(); const seen=new Set(),out=[];
  // 실제 검색으로 발견한 대상을 먼저, 기존 목록은 부족할 때만 보조 후보로 사용한다.
- for(const x of [...found,...seed]){const n=candidateDisplayName(x.name),k=normalizeItemName(n);if(!n||!k||seen.has(k))continue;seen.add(k);out.push({...x,name:n});}
+ for(const x of [...seed,...found]){const n=candidateDisplayName(x.name),k=normalizeItemName(n);if(!n||!k||seen.has(k))continue;seen.add(k);out.push({...x,name:n});}
  return out.slice(0,40);
 }
 async function iNatPhoto(name){try{const r=await fetch('https://api.inaturalist.org/v1/taxa?q='+encodeURIComponent(name)+'&per_page=5&order=desc&order_by=observations_count');if(!r.ok)return'';const j=await r.json();for(const x of j.results||[]){const u=x.default_photo?.medium_url||x.default_photo?.url;if(u)return u;}}catch(e){}return'';}
@@ -809,6 +809,19 @@ async function improveDescription(name,country,section,id,current){
 // 특정 후보 전용 설명, 별칭, 사진 제목은 사용하지 않습니다.
 function stripHtml(v){return String(v||'').replace(/<[^>]+>/g,' ').replace(/&quot;/g,'"').replace(/&#039;/g,"'").replace(/&amp;/g,'&').replace(/\s+/g,' ').trim()}
 function isMostlyKorean(t){const s=String(t||'');const ko=(s.match(/[가-힣]/g)||[]).length;const letters=(s.match(/[A-Za-z가-힣]/g)||[]).length;return letters===0?false:ko/letters>.28}
+async function exactDescription(name,subjectId,section){
+ // 모든 주제에 공통 적용: 먼저 후보 이름 그대로의 한국어 문서를 확인한다.
+ try{
+  const r=await fetch('https://ko.wikipedia.org/api/rest_v1/page/summary/'+encodeURIComponent(name));
+  if(r.ok){const j=await r.json();const ex=stripHtml(j.extract||'');
+   if(ex.length>=45&&isMostlyKorean(ex)){
+    const score=genericContextScore(j.title||name,ex,name,subjectId,section);
+    if(score>=10)return {title:j.title||name,desc:ex.split(/(?<=[.!?。！？])\s+/).slice(0,4).join(' '),score};
+   }
+  }
+ }catch(e){}
+ return null;
+}
 async function genericDescription(name,subjectId,section){
  let best=null;
  for(const q of genericQuerySet(name,subjectId,section)){
@@ -831,7 +844,7 @@ async function verifyCandidateOnce(section,name){
  const k=COUNTRY+'|'+section+'|'+normalizeItemName(name);
  if(CANDIDATE_CHECK_CACHE.has(k))return CANDIDATE_CHECK_CACHE.get(k);
  const p=(async()=>{
-   const d=await genericDescription(name,COUNTRY,section);
+   const d=(await exactDescription(name,COUNTRY,section))||(await genericDescription(name,COUNTRY,section));
    if(!d)return null;
    const ph=await multiSourcePhoto(name,COUNTRY,section);
    if(!ph)return {name,desc:d.desc,photo:'',quality:'text-only',sources:['Wikipedia']};
@@ -847,30 +860,28 @@ async function previewCandidate(s,name,box){
   if(!verified){box.innerHTML='<div class="preview-card"><b>이 항목은 추천후보 기준을 통과하지 못했습니다.</b></div>';return;}
   if(!verified.photo){box.innerHTML='<div class="preview-card"><b>대표사진을 안정적으로 찾지 못했습니다.</b><p>추천후보에서는 제외하고 다른 후보를 보여줍니다.</p></div>';return;}
   box.innerHTML=`<div class="preview-card"><img src="${verified.photo}" alt="${esc(name)}"><h3>${esc(name)}</h3><p>${esc(verified.desc)}</p><p class="note">자료원: ${esc((verified.sources||[]).join(' + '))}</p><div class="preview-actions"><button class="accept-candidate">⭐ 이 내용 그대로 추가하기</button><button class="skip-candidate">이번에는 넣지 않기</button></div></div>`;
-  box.querySelector('.accept-candidate').onclick=async()=>{const btn=box.querySelector('.accept-candidate');if(btn)btn.disabled=true;try{const a=getCustom(s);if(hasIdentity(name,a)){alert('이미 같은 항목이 있습니다.');return;}const id=newItemId();a.push({id,name,desc:verified.desc,emoji:'⭐',source:'recommended',photoVerified:true});setCustom(s,a);await setUserPhoto(`photo_${DATA_NS}${COUNTRY}_${s}_${id}`,verified.photo);box.innerHTML='';await renderSection(s)}catch(e){alert('추가 중 오류가 발생했습니다. 다시 시도해 주세요.');if(btn)btn.disabled=false;}};
+  box.querySelector('.accept-candidate').onclick=async()=>{const btn=box.querySelector('.accept-candidate');if(btn)btn.disabled=true;try{const a=getCustom(s);if(hasIdentity(name,a)){alert('이미 같은 항목이 있습니다.');return;}const id=newItemId();a.push({id,name,desc:verified.desc,emoji:'⭐',source:'recommended',photoVerified:true,photoRemote:verified.photo,sources:verified.sources||[]});setCustom(s,a);box.innerHTML='';await renderSection(s)}catch(e){alert('추가 중 오류가 발생했습니다. 다시 시도해 주세요.');if(btn)btn.disabled=false;}};
   box.querySelector('.skip-candidate').onclick=()=>{box.dataset.previewToken='';box.innerHTML=''};
  }catch(e){if(box.dataset.previewToken===token)box.innerHTML='<div class="preview-card"><b>확인 중 오류가 있었습니다.</b><p>다른 후보를 선택해 주세요.</p></div>';}
 }
 async function renderCandidates(s,host){
- const targets=await discoverCandidateTargets(COUNTRY,s); const pool=targets.map(x=>x.name);if(!pool.length)return;
- const active=getCustom(s);const wrap=document.createElement('div');wrap.className='candidate-box';
- wrap.innerHTML=`<h3>✨ 추천할 만한 항목</h3><p class="note">여러 자료원에서 검색대상을 먼저 발굴한 뒤, 설명과 대표사진이 모두 안정적인 항목만 보여줍니다.</p><div class="candidate-legend">🪄 여러 자료원에서 검색대상을 찾고 검증하는 중…</div><div class="candidate-chips"></div><div class="candidate-preview"></div>`;
- host.parentElement.appendChild(wrap);const chips=wrap.querySelector('.candidate-chips'), legend=wrap.querySelector('.candidate-legend'), pv=wrap.querySelector('.candidate-preview');
- let passed=0, checked=0;
- // 화면을 막지 않도록 한 항목씩 검사하고, 합격한 후보부터 즉시 보여줍니다.
- for(const n of pool){
-   if(!wrap.isConnected)return;
-   const added=hasIdentity(n,active);
-   let v=null;try{v=await verifyCandidateOnce(s,n)}catch(e){}
-   checked++;
-   if(v&&v.photo){
-     const b=document.createElement('button');b.className='candidate-chip '+(added?'added':'available');b.dataset.name=n;b.textContent=n;b.disabled=added;
-     if(!added)b.onclick=()=>previewCandidate(s,n,pv);chips.appendChild(b);passed++;
-   }
-   legend.textContent=`🪄 후보 ${checked}/${pool.length} 확인 · 사진과 설명이 좋은 후보 ${passed}개`;
-   if(passed>=CANDIDATE_TARGET && checked>=Math.min(pool.length,CANDIDATE_TARGET+2))break;
+ const targets=await discoverCandidateTargets(COUNTRY,s);if(!targets.length)return;
+ const active=getCustom(s),wrap=document.createElement('div');wrap.className='candidate-box';
+ wrap.innerHTML=`<h3>✨ 추천할 만한 항목</h3><p class="note">검색대상을 넉넉히 모은 뒤 같은 기준으로 설명과 대표사진을 확인합니다. 특정 후보를 위한 예외 규칙은 사용하지 않습니다.</p><div class="candidate-legend">🪄 좋은 후보를 찾고 있어요…</div><div class="candidate-chips"></div><div class="candidate-preview"></div>`;
+ host.parentElement.appendChild(wrap);const chips=wrap.querySelector('.candidate-chips'),legend=wrap.querySelector('.candidate-legend'),pv=wrap.querySelector('.candidate-preview');
+ let passed=0,checked=0;const seen=new Set();
+ // 4개씩 병렬 검사: 한 자료원이 느리거나 실패해도 다른 후보 검사는 계속된다.
+ for(let i=0;i<targets.length&&passed<CANDIDATE_TARGET;i+=4){
+  if(!wrap.isConnected)return;
+  const batch=targets.slice(i,i+4);
+  const results=await Promise.all(batch.map(async t=>{try{return [t,await verifyCandidateOnce(s,t.name)]}catch(e){return [t,null]}}));
+  for(const [t,v] of results){checked++;if(!v||!v.photo)continue;const k=normalizeItemName(t.name);if(seen.has(k))continue;seen.add(k);
+   const added=hasIdentity(t.name,active),b=document.createElement('button');b.className='candidate-chip '+(added?'added':'available');b.dataset.name=t.name;b.textContent=t.name;b.disabled=added;
+   if(!added)b.onclick=()=>previewCandidate(s,t.name,pv);chips.appendChild(b);passed++;if(passed>=CANDIDATE_TARGET)break;
+  }
+  legend.textContent=`🪄 ${checked}개 확인 · 사진과 설명이 좋은 후보 ${passed}개`;
  }
- legend.textContent=passed?`✓ 여러 자료원에서 사진과 설명을 확인한 추천후보 ${passed}개`:'이번에는 추천 기준을 통과한 후보를 찾지 못했습니다.';
+ legend.textContent=passed?`✓ 설명과 대표사진을 함께 확인한 추천후보 ${passed}개`:'추천 기준을 통과한 후보가 없습니다. 검색원을 바꾸거나 범위를 넓혀 다시 찾습니다.';
 }
 async function renderSection(s){
  const el=document.getElementById(s+'List'); el.parentElement.querySelectorAll('.candidate-box').forEach(x=>x.remove());
@@ -880,7 +891,7 @@ async function renderSection(s){
  for(const x of arr){
    const isManual=x.source==='manual'; let desc=localStorage.getItem(editKey(s,x.id))??x.desc;
    const card=document.createElement('article');card.className='item'+(isManual?' minecard':'');
-   let photo=await getUserPhoto(`photo_${DATA_NS}${COUNTRY}_${s}_${x.id}`);
+   let photo=x.photoRemote||await getUserPhoto(`photo_${DATA_NS}${COUNTRY}_${s}_${x.id}`);
    card.innerHTML=`<div class="photo-area">${photo?`<img src="${photo}" alt="${esc(x.name)}">`:`<span class="fallback-emoji">${x.emoji||'📷'}</span>`}</div><h3>${esc(x.name)}</h3><p>${esc(desc)}</p>${isManual?'<span class="mine">내가 직접 만든 항목</span>':''}<div class="actions"><div><button type="button" class="photo">사진 등록 / 바꾸기</button><input class="photo-input" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,image/*" hidden></div><div class="right"><button class="edit-desc">설명 수정</button><button class="delete">항목 삭제</button></div></div>`;
    if(!photo && !(x.source==='recommended'&&x.photoVerified===false)){autoPhoto(x.name,COUNTRY,s).then(u=>{if(u&&card.isConnected)card.querySelector('.photo-area').innerHTML=`<img src="${u}" alt="${esc(x.name)}">`;})}
    const input=card.querySelector('input'); card.querySelector('.photo').onclick=()=>input.click();
