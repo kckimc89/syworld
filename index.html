@@ -531,7 +531,7 @@ function photoMatchScore(page,name,country,section){
  if(bad&&bad.test(t))score-=12; return score;
 }
 async function autoPhoto(name,country,section){
- const ck='autophoto_trial2_'+country+'_'+section+'_'+name; const cached=localStorage.getItem(ck); if(cached)return cached;
+ const ck='autophoto_trial4_'+country+'_'+section+'_'+name; const cached=localStorage.getItem(ck); if(cached)return cached;
  const c=countries[country]; const sectionHint={food:'음식',animals:'동물 식물',places:'명소',culture:'문화',singers:'가수 singer musician',athletes:'운동선수 athlete',people:'역사인물 historical person',art:'예술작품 artwork art'}[section]||'';
  const alias=PHOTO_ALIASES[country+'|'+section+'|'+name]||'';
  const islandHint=(section==='places' && /섬|island/i.test(name))?' 섬 전체 해안 항공사진 island aerial coastline':'';
@@ -798,9 +798,10 @@ async function previewCandidate(s,name,box){
  box.innerHTML='<div class="preview-card">🔎 사진과 설명을 찾아보고 있어요…</div>';
  const [photo,desc]=await Promise.all([autoPhoto(name,COUNTRY,s),candidateDescription(name,COUNTRY,s)]);
  const c=countries[COUNTRY];
- if(!photo||!desc){box.innerHTML=`<div class="preview-card"><b>이번 후보는 아직 준비가 부족해요.</b><p>${!photo?'알맞은 사진 ':''}${!photo&&!desc?'과 ':''}${!desc?'충분한 설명 ':''}을 찾지 못했습니다.</p><button class="candidate-chip retry-other">다른 후보 보기</button></div>`;box.querySelector('.retry-other').onclick=()=>{box.innerHTML=''};return;}
- box.innerHTML=`<div class="preview-card"><div class="discover"><b>🎉 새로운 발견!</b> ${esc(c.name)}의 ${esc(SECTION_LABEL[s])} 후보를 찾았어요.</div><img src="${photo}" alt="${esc(name)}"><h3>${esc(name)}</h3><p>${esc(desc)}</p><div class="preview-actions"><button class="accept-candidate">⭐ 내 백과사전에 넣기</button><button class="skip-candidate">이번에는 넣지 않기</button></div></div>`;
- box.querySelector('.accept-candidate').onclick=async()=>{const existing=getCustom(s);if(!isDuplicateName(name,[...baseItems(s),...existing].map(x=>x.name))){existing.push({id:'u'+Date.now(),name,desc,emoji:'⭐',unrelated:false,source:'candidate'});localStorage.setItem(key(s),JSON.stringify(existing));}renderSection(s)};
+ if(!desc){box.innerHTML=`<div class="preview-card"><b>이번 후보는 추천 목록에서 제외할게요.</b><p>이 나라와 연결된 충분한 설명을 안정적으로 찾지 못했습니다. 아이가 실패를 반복해서 겪지 않도록 이 후보는 지금은 선택하지 않는 편이 좋아요.</p><button class="candidate-chip retry-other">다른 후보 보기</button></div>`;box.querySelector('.retry-other').onclick=()=>{box.innerHTML=''};return;}
+ const photoHtml=photo?`<img src="${photo}" alt="${esc(name)}">`:`<div class="photo-area" style="height:220px"><span style="font-size:4rem">🪄</span></div><div class="discover" style="margin-top:10px"><b>📷 알맞은 사진은 아직 못 찾았어요.</b><br>설명은 잘 찾았습니다. 사진 없이 먼저 추가한 뒤, 카드의 「사진 등록 / 바꾸기」에서 나중에 사진을 넣을 수 있어요.</div>`;
+ box.innerHTML=`<div class="preview-card"><div class="discover"><b>🎉 새로운 발견!</b> ${esc(c.name)}의 ${esc(SECTION_LABEL[s])} 후보를 찾았어요.</div>${photoHtml}<h3>${esc(name)}</h3><p>${esc(desc)}</p><div class="preview-actions"><button class="accept-candidate">${photo?'⭐ 내 백과사전에 넣기':'⭐ 사진 없이 추가하기'}</button><button class="skip-candidate">이번에는 넣지 않기</button></div></div>`;
+ box.querySelector('.accept-candidate').onclick=async()=>{const existing=getCustom(s);const activeBase=baseItems(s).filter(x=>!getDeletedBase(s).includes(x.id));if(!isDuplicateName(name,[...activeBase,...existing].map(x=>x.name))){const id='u'+Date.now();existing.push({id,name,desc,emoji:'⭐',unrelated:false,source:'candidate'});localStorage.setItem(key(s),JSON.stringify(existing));if(photo)await setUserPhoto(`photo_${COUNTRY}_${s}_${id}`,photo);forgetDeletedName(s,name);}renderSection(s)};
  box.querySelector('.skip-candidate').onclick=()=>{box.innerHTML=''};
 }
 function renderCandidates(s,host){
@@ -854,12 +855,12 @@ function relationTerms(country){const c=countries[country];return [c.name,c.en,c
 async function addItem(s,prefill=''){
  let n=prefill||prompt('추가할 항목의 이름을 입력하세요.'); if(!n?.trim())return; n=n.trim();
  if(prefill&&!confirm(`전에 삭제한 「${n}」을 새 항목으로 다시 추가할까요?\n\n예전 설명을 복구하는 것이 아니라 처음부터 새로 등록합니다.`))return;
- const existingNames=[...baseItems(s),...getCustom(s)].map(x=>x.name);
+ const activeBase=baseItems(s).filter(x=>!getDeletedBase(s).includes(x.id));
+ const existingNames=[...activeBase,...getCustom(s)].map(x=>x.name);
  if(isDuplicateName(n,existingNames)){alert('이미 같은 항목이 있습니다. 띄어쓰기·괄호·기호가 달라도 같은 이름으로 판단합니다.');return;}
  const c=countries[COUNTRY]; let desc=await lookupDescription(n,COUNTRY,s); let corpus=(n+' '+desc).toLowerCase();
  let related=relationTerms(COUNTRY).filter(Boolean).some(w=>corpus.includes(String(w).toLowerCase()));
- // 기존 기본항목과 이름이 같으면 관련 항목으로 봅니다.
- if(baseItems(s).some(x=>x.name===n)) related=true;
+ // 삭제된 기본항목을 다시 만드는 경우에도 과거 기본설명을 복원하지 않고 새 검색 결과로 판단합니다.
  if(!related){if(!confirm('「'+n+'」은(는) 현재 확인한 설명만으로 '+c.name+'과의 관련성을 충분히 확인하기 어렵습니다.\n그래도 추가하시겠습니까?'))return;}
  if(!desc){desc=prompt('기본 설명을 자동으로 찾지 못했습니다. 아이에게 보여줄 설명을 입력하세요.')||''; if(!desc.trim())return;}
  let a=getCustom(s); a.push({id:'u'+Date.now(),name:n,desc:desc.trim(),emoji:'⭐',unrelated:!related,source:'manual'}); localStorage.setItem(key(s),JSON.stringify(a)); forgetDeletedName(s,n); renderSection(s);
@@ -887,4 +888,5 @@ function fmtBackupDate(iso){if(!iso)return '';try{return new Intl.DateTimeFormat
 async function updateBackupLast(){const name=localStorage.getItem('last_backup_name'),at=localStorage.getItem('last_backup_at'),last=await loadLastBackup();const el=document.getElementById('backupLast'),btn=document.getElementById('restoreLast');if(last){el.innerHTML='마지막 백업: <b>'+esc(name||backupFilename(last.createdAt))+'</b><br>'+fmtBackupDate(at||last.createdAt);btn.disabled=false;btn.style.opacity='1'}else{el.textContent='마지막 백업: 아직 없습니다.';btn.disabled=true;btn.style.opacity='.5'}}
 const backupModal=document.getElementById('backupModal');document.getElementById('backupBtn').onclick=()=>{backupModal.classList.remove('hidden');updateBackupLast()};document.getElementById('backupClose').onclick=()=>backupModal.classList.add('hidden');backupModal.onclick=e=>{if(e.target===backupModal)backupModal.classList.add('hidden')};document.getElementById('makeBackup').onclick=makeBackupFile;document.getElementById('restoreLast').onclick=async()=>{const d=await loadLastBackup();if(!d){alert('이 기기에 기억된 마지막 백업이 없습니다. 다른 백업 파일을 선택해 주세요.');return}const n=localStorage.getItem('last_backup_name')||'마지막 백업';if(confirm('「'+n+'」으로 복원할까요?\n현재 수정 내용과 등록 사진은 이 백업 시점의 내용으로 바뀝니다.'))await applyBackup(d)};document.getElementById('chooseBackup').onclick=()=>document.getElementById('backupFileInput').click();document.getElementById('backupFileInput').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;try{const d=JSON.parse(await f.text());if(!validBackup(d))throw new Error();if(confirm('선택한 백업 파일\n「'+f.name+'」\n으로 복원할까요?')){await saveLastBackup(d);localStorage.setItem('last_backup_name',f.name);localStorage.setItem('last_backup_at',d.createdAt||new Date().toISOString());await applyBackup(d)}}catch(err){alert('이 백업 파일을 읽을 수 없습니다. 세계 나라 백과사전에서 만든 JSON 백업 파일인지 확인해 주세요.')}finally{e.target.value=''}};
 
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));}
 </script></body></html>
