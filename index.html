@@ -505,6 +505,9 @@ function markCandidate(s,n){localStorage.setItem(candidateKey(s),JSON.stringify(
 function unmarkCandidate(s,n){localStorage.setItem(candidateKey(s),JSON.stringify(usedCandidates(s).filter(x=>x!==n)))}
 function baseItems(s){if(s==='food')return (foodData[COUNTRY]||[]).map((x,i)=>({id:'b'+i,name:x[0],desc:x[1],emoji:'🍽️',mine:false}));return ((more[COUNTRY]||{})[s]||[]).map((x,i)=>({id:'b'+i,name:x[0],desc:x[1],emoji:x[2]||'📷',mine:false}))}
 const PHOTO_ALIASES={
+'ES|food|타파스':'Tapas Spain Spanish cuisine appetizer',
+'ES|food|또르띠야 에스파뇰라':'Tortilla de patatas Spanish omelette Spain food',
+'ES|food|토르티야 에스파뇰라':'Tortilla de patatas Spanish omelette Spain food',
  'CA|food|푸틴':'Poutine Quebec Canadian food cheese curds gravy',
  'CA|food|푸틴(Poutine)':'Poutine Quebec Canadian food',
  'JP|animals|두루미':'Red-crowned crane Hokkaido Japan',
@@ -531,7 +534,7 @@ function photoMatchScore(page,name,country,section){
  if(bad&&bad.test(t))score-=12; return score;
 }
 async function autoPhoto(name,country,section){
- const ck='autophoto_trial4_'+country+'_'+section+'_'+name; const cached=localStorage.getItem(ck); if(cached)return cached;
+ const ck='autophoto_trial5_'+country+'_'+section+'_'+name; const cached=localStorage.getItem(ck); if(cached)return cached;
  const c=countries[country]; const sectionHint={food:'음식',animals:'동물 식물',places:'명소',culture:'문화',singers:'가수 singer musician',athletes:'운동선수 athlete',people:'역사인물 historical person',art:'예술작품 artwork art'}[section]||'';
  const alias=PHOTO_ALIASES[country+'|'+section+'|'+name]||'';
  const islandHint=(section==='places' && /섬|island/i.test(name))?' 섬 전체 해안 항공사진 island aerial coastline':'';
@@ -785,23 +788,37 @@ async function improveDescription(name,country,section,id,current){
 }
 async function candidateDescription(name,country,section){
  const c=countries[country];
- const hints={food:'음식 요리',animals:'동물 식물 자연',places:'명소 장소',culture:'문화 전통',singers:'가수 음악가',athletes:'운동선수 스포츠',people:'역사 인물',art:'예술 작품'};
- const qs=[`${name} ${c.name} ${hints[section]||''}`,`${name} ${c.name}`,name];
- for(const q of qs){
-  try{const r=await fetch('https://ko.wikipedia.org/w/api.php?action=query&list=search&srsearch='+encodeURIComponent(q)+'&srlimit=5&format=json&origin=*');if(!r.ok)continue;const j=await r.json();
-   for(const hit of (j.query?.search||[])){try{const rr=await fetch('https://ko.wikipedia.org/api/rest_v1/page/summary/'+encodeURIComponent(hit.title));if(!rr.ok)continue;const x=await rr.json();let t=(x.extract||'').replace(/\s+/g,' ').trim();if(t.length>55)return t.split(/(?<=[.!?。！？])\s+/).slice(0,4).join(' ')}catch(e){}}
-  }catch(e){}
+ const aliases={
+  'ES|food|타파스':['타파스','Tapas'],
+  'ES|food|또르띠야 에스파뇰라':['토르티야 에스파뇰라','Tortilla de patatas','Spanish omelette'],
+  'ES|food|토르티야 에스파뇰라':['토르티야 에스파뇰라','Tortilla de patatas','Spanish omelette']
+ }[country+'|'+section+'|'+name]||[name];
+ const hints={food:'음식 요리 재료 조리법',animals:'동물 식물 생물 서식 분포',places:'명소 장소 위치 유적',culture:'문화 전통 축제 예술',singers:'가수 음악가',athletes:'운동선수 스포츠',people:'역사 인물',art:'예술 작품'};
+ for(const n of aliases){
+  for(const q of [`${n} ${c.name} ${hints[section]||''}`,`${n} ${c.name}`,`${c.name} ${n}`]){
+   const t=await wikiSearchSummary(q,n,c.name,section);
+   if(t&&!genericDesc(t))return t;
+  }
  }
  return '';
 }
 async function previewCandidate(s,name,box){
- box.innerHTML='<div class="preview-card">🔎 사진과 설명을 찾아보고 있어요…</div>';
- const [photo,desc]=await Promise.all([autoPhoto(name,COUNTRY,s),candidateDescription(name,COUNTRY,s)]);
+ const token=String(Date.now())+Math.random(); box.dataset.previewToken=token;
+ box.innerHTML='<div class="preview-card">🔎 사진과 설명을 서로 맞춰 확인하고 있어요…</div>';
+ const desc=await candidateDescription(name,COUNTRY,s); if(box.dataset.previewToken!==token)return;
+ if(!desc){box.innerHTML=`<div class="preview-card"><b>이번 후보는 추천 목록에서 제외할게요.</b><p>「${esc(name)}」을(를) ${esc(countries[COUNTRY].name)}의 ${esc(SECTION_LABEL[s])}로 설명할 수 있는 충분히 정확한 자료를 찾지 못했습니다.</p><button class="candidate-chip retry-other">다른 후보 보기</button></div>`;box.querySelector('.retry-other').onclick=()=>{box.innerHTML=''};return;}
+ const photo=await autoPhoto(name,COUNTRY,s); if(box.dataset.previewToken!==token)return;
  const c=countries[COUNTRY];
- if(!desc){box.innerHTML=`<div class="preview-card"><b>이번 후보는 추천 목록에서 제외할게요.</b><p>이 나라와 연결된 충분한 설명을 안정적으로 찾지 못했습니다. 아이가 실패를 반복해서 겪지 않도록 이 후보는 지금은 선택하지 않는 편이 좋아요.</p><button class="candidate-chip retry-other">다른 후보 보기</button></div>`;box.querySelector('.retry-other').onclick=()=>{box.innerHTML=''};return;}
- const photoHtml=photo?`<img src="${photo}" alt="${esc(name)}">`:`<div class="photo-area" style="height:220px"><span style="font-size:4rem">🪄</span></div><div class="discover" style="margin-top:10px"><b>📷 알맞은 사진은 아직 못 찾았어요.</b><br>설명은 잘 찾았습니다. 사진 없이 먼저 추가한 뒤, 카드의 「사진 등록 / 바꾸기」에서 나중에 사진을 넣을 수 있어요.</div>`;
- box.innerHTML=`<div class="preview-card"><div class="discover"><b>🎉 새로운 발견!</b> ${esc(c.name)}의 ${esc(SECTION_LABEL[s])} 후보를 찾았어요.</div>${photoHtml}<h3>${esc(name)}</h3><p>${esc(desc)}</p><div class="preview-actions"><button class="accept-candidate">${photo?'⭐ 내 백과사전에 넣기':'⭐ 사진 없이 추가하기'}</button><button class="skip-candidate">이번에는 넣지 않기</button></div></div>`;
- box.querySelector('.accept-candidate').onclick=async()=>{const existing=getCustom(s);const activeBase=baseItems(s).filter(x=>!getDeletedBase(s).includes(x.id));if(!isDuplicateName(name,[...activeBase,...existing].map(x=>x.name))){const id='u'+Date.now();existing.push({id,name,desc,emoji:'⭐',unrelated:false,source:'candidate'});localStorage.setItem(key(s),JSON.stringify(existing));if(photo)await setUserPhoto(`photo_${COUNTRY}_${s}_${id}`,photo);forgetDeletedName(s,name);}renderSection(s)};
+ // 이 객체가 '확정 미리보기'입니다. 추가 버튼은 재검색하지 않고 이 값 그대로 저장합니다.
+ const snapshot={name,desc,photo:photo||'',country:COUNTRY,section:s};
+ const photoHtml=snapshot.photo?`<img src="${snapshot.photo}" alt="${esc(name)}">`:`<div class="photo-area" style="height:220px"><span style="font-size:4rem">🪄</span></div><div class="discover" style="margin-top:10px"><b>📷 알맞은 사진은 아직 못 찾았어요.</b><br>설명은 확인했습니다. 사진 없이 추가하면 자동으로 다른 사진을 끼워 넣지 않고 빈 사진칸을 유지합니다.</div>`;
+ box.innerHTML=`<div class="preview-card"><div class="discover"><b>🎉 새로운 발견!</b> ${esc(c.name)}의 ${esc(SECTION_LABEL[s])} 후보를 찾았어요.</div>${photoHtml}<h3>${esc(name)}</h3><p>${esc(snapshot.desc)}</p><div class="preview-actions"><button class="accept-candidate">${snapshot.photo?'⭐ 이 내용 그대로 추가하기':'⭐ 사진 없이 이 내용 그대로 추가하기'}</button><button class="skip-candidate">이번에는 넣지 않기</button></div></div>`;
+ box.querySelector('.accept-candidate').onclick=async()=>{
+  const existing=getCustom(s),activeBase=baseItems(s).filter(x=>!getDeletedBase(s).includes(x.id));
+  if(isDuplicateName(snapshot.name,[...activeBase,...existing].map(x=>x.name))){alert('이미 같은 이름의 항목이 있습니다.');return;}
+  const id='u'+Date.now(); existing.push({id,name:snapshot.name,desc:snapshot.desc,emoji:'⭐',unrelated:false,source:'candidate',previewLocked:true,photoVerified:!!snapshot.photo});
+  localStorage.setItem(key(s),JSON.stringify(existing)); if(snapshot.photo)await setUserPhoto(`photo_${COUNTRY}_${s}_${id}`,snapshot.photo); forgetDeletedName(s,snapshot.name); renderSection(s);
+ };
  box.querySelector('.skip-candidate').onclick=()=>{box.innerHTML=''};
 }
 function renderCandidates(s,host){
@@ -828,7 +845,7 @@ async function renderSection(s){
   card.innerHTML=`<div class="photo-area">${photo?`<img src="${photo}" alt="${esc(x.name)}">`:`<span class="fallback-emoji">${x.emoji||'📷'}</span>`}</div><h3>${esc(x.name)}${x.unrelated?'<span class="related-status"> · 이 나라와 관련성 확인 필요</span>':''}</h3><p>${esc(desc)}</p>${x.mine?'<span class="mine">내가 추가한 항목</span>':''}<div class="actions"><div><button type="button" class="photo">사진 등록 / 바꾸기</button><input class="photo-input" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,image/*" hidden></div><div class="right"><button class="edit-desc">설명 수정</button>${!x.mine&&COUNTRY==='KR'?'<button class="reset-desc">원래 설명으로</button>':''}<button class="delete">항목 삭제</button></div></div>`;
   if(!x.mine && COUNTRY!=='KR' && !localStorage.getItem(editKey(s,x.id))){rebuiltBaseDescription(x.name,COUNTRY,s,x.id,x.desc).then(t=>{if(card.isConnected){const pp=card.querySelector('p');if(pp)pp.textContent=t;}})}
   if(s==='places'&&!x.mine&&!localStorage.getItem(editKey(s,x.id))&&COUNTRY==='KR'){const curated=curatedPlaceDescription(COUNTRY,x.name);const p=card.querySelector('p');if(curated){if(p)p.textContent=curated}else if(needsPlaceEnrichment(x.desc)){if(p)p.textContent='명소의 위치·역사·특징을 확인하고 있어요…';verifiedPlaceDescription(x.name,COUNTRY).then(t=>{if(card.isConnected){const p2=card.querySelector('p');if(p2)p2.textContent=t||x.desc;}})}}
-  if(!photo){autoPhoto(x.name,COUNTRY,s).then(u=>{if(u&&card.isConnected){card.querySelector('.photo-area').innerHTML=`<img src="${u}" alt="${esc(x.name)}">`;}})}
+  if(!photo && !(x.source==='candidate' && x.photoVerified===false)){autoPhoto(x.name,COUNTRY,s).then(u=>{if(u&&card.isConnected){card.querySelector('.photo-area').innerHTML=`<img src="${u}" alt="${esc(x.name)}">`;}})}
   let input=card.querySelector('input');card.querySelector('.photo').onclick=()=>input.click();
   input.onchange=async()=>{let f=input.files?.[0];if(!f)return;try{const data=await preparePhoto(f);await setUserPhoto(`photo_${COUNTRY}_${s}_${x.id}`,data);await renderSection(s)}catch(e){alert('사진을 저장하지 못했습니다. 다른 사진을 선택해 주세요.')}};
   card.querySelector('.edit-desc').onclick=()=>{let shown=card.querySelector('p')?.textContent||desc;let v=prompt('설명을 수정하세요.',shown);if(v!==null&&v.trim()){localStorage.setItem(editKey(s,x.id),v.trim());renderSection(s)}};
