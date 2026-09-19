@@ -891,16 +891,74 @@ async function genericDescription(name,subjectId,section){
  }
  return best&&best.score>=10?best:null;
 }
+
+// ===== Engine 11: Entity 재확정 관문 =====
+// 후보 이름/설명 단어가 아니라 Wikidata의 실제 종류(P31), 직업(P106), 국적/국가 관계를 확인한다.
+const SUBJECT_WD={ES:'Q29',JP:'Q17',US:'Q30'};
+const WD_META_CACHE=new Map(), WD_LABEL_CACHE=new Map();
+function wdIds(claims,p){return (claims?.[p]||[]).map(x=>x?.mainsnak?.datavalue?.value?.id).filter(Boolean)}
+async function wdEntity(id){
+ if(!id||!/^Q\\d+$/.test(id))return null;if(WD_META_CACHE.has(id))return WD_META_CACHE.get(id);
+ const pr=(async()=>{try{const r=await fetch('https://www.wikidata.org/wiki/Special:EntityData/'+id+'.json?origin=*');if(!r.ok)return null;const j=await r.json();return j.entities?.[id]||null}catch(e){return null}})();WD_META_CACHE.set(id,pr);return pr;
+}
+async function wdLabels(ids){
+ const need=[...new Set(ids.filter(x=>/^Q\\d+$/.test(x)))];if(!need.length)return{};const out={};
+ const miss=need.filter(id=>!WD_LABEL_CACHE.has(id));
+ if(miss.length){try{const r=await fetch('https://www.wikidata.org/w/api.php?action=wbgetentities&ids='+encodeURIComponent(miss.join('|'))+'&props=labels&languages=ko|en&format=json&origin=*');if(r.ok){const j=await r.json();for(const id of miss){const e=j.entities?.[id];const v=e?.labels?.ko?.value||e?.labels?.en?.value||'';WD_LABEL_CACHE.set(id,v)}}}catch(e){}}
+ for(const id of need)out[id]=WD_LABEL_CACHE.get(id)||'';return out;
+}
+async function wdTypeProfile(entityId){
+ const e=await wdEntity(entityId);if(!e)return null;const p31=wdIds(e.claims,'P31'),p106=wdIds(e.claims,'P106');
+ const first=[...new Set([...p31,...p106])], firstLabels=await wdLabels(first);let parents=[];
+ for(const id of first.slice(0,14)){const x=await wdEntity(id);if(x)parents.push(...wdIds(x.claims,'P279'))}
+ parents=[...new Set(parents)];const parentLabels=await wdLabels(parents);
+ const typeText=[...first.map(x=>firstLabels[x]),...parents.map(x=>parentLabels[x])].filter(Boolean).join(' · ').toLowerCase();
+ return {entity:e,p31,p106,typeText,typeLabels:first.map(x=>firstLabels[x]).filter(Boolean),parentLabels:parents.map(x=>parentLabels[x]).filter(Boolean)};
+}
+function hasAny(t,words){t=String(t||'').toLowerCase();return words.some(w=>t.includes(w))}
+const ENTITY_GATE={
+ food:{yes:['dish','food','bread','dessert','soup','stew','sausage','cheese','pastry','요리','음식','빵','후식','수프','소시지','치즈'],no:['cuisine','요리 문화','국가','country','human','사람','painting','회화']},
+ animals:{yes:['taxon','species','animal','plant','bird','tree','mammal','reptile','fish','insect','분류군','종','동물','식물','조류','나무','포유류','파충류','어류','곤충'],no:['painting','회화','oil','오일','war','전쟁','country','국가','human','사람']},
+ places:{yes:['geographic','location','building','museum','church','cathedral','monument','park','mountain','island','city','bridge','palace','장소','건축','박물관','성당','기념물','공원','산','섬','도시','다리','궁전'],no:['war','battle','event','전쟁','전투','사건','human','사람']},
+ culture:{yes:['festival','tradition','dance','music genre','sport','cultural','celebration','축제','전통','춤','음악 장르','스포츠','문화'],no:['country','sovereign state','국가','human','사람']},
+ singers:{yes:['singer','musician','songwriter','vocalist','가수','음악가','싱어송라이터'],no:['team','club','팀','구단']},
+ athletes:{yes:['athlete','player','footballer','tennis player','racing driver','swimmer','badminton player','운동선수','선수','축구 선수','테니스 선수','레이싱 드라이버','수영 선수'],no:['team','club','national team','팀','구단','국가대표팀']},
+ people:{yes:['human','person','사람'],no:['team','club','organization','national team','팀','구단','조직','국가대표팀']},
+ art:{yes:['artwork','painting','sculpture','novel','film','literary work','musical work','composition','creative work','예술 작품','회화','조각','소설','영화','문학 작품','음악 작품','작품'],no:['human','person','museum','city','country','사람','박물관','도시','국가']}
+};
+async function subjectRelationOK(profile,section){
+ const subject=SUBJECT_WD[COUNTRY];if(!subject||!profile)return true;const c=profile.entity.claims||{};
+ // 국가/국적/원산국/위치가 직접 주제 국가이면 강한 관계 증거.
+ for(const p of ['P17','P27','P495','P1001'])if(wdIds(c,p).includes(subject))return true;
+ // 사람은 출생지의 국가까지 한 단계 확인한다.
+ if(['singers','athletes','people'].includes(section))for(const place of wdIds(c,'P19').slice(0,3)){const pe=await wdEntity(place);if(pe&&wdIds(pe.claims,'P17').includes(subject))return true}
+ // 직접 구조정보가 없는 분야는 기존 본문 주제증거를 보조적으로 허용한다.
+ return !['singers','athletes','people'].includes(section);
+}
+async function entityCategoryGate(entityId,section){
+ if(!/^Q\\d+$/.test(entityId||''))return {ok:true,reason:'Wikidata 종류정보 없음 — 기존 Entity 일치검사 유지'};
+ const p=await wdTypeProfile(entityId);if(!p)return {ok:true,reason:'종류정보 조회 실패 — 좋은 후보를 함부로 버리지 않음'};
+ const r=ENTITY_GATE[section]||{yes:[],no:[]}, t=p.typeText;
+ const isHuman=p.p31.includes('Q5')||hasAny(t,['human','사람']);
+ if(['singers','athletes','people'].includes(section)&&!isHuman)return {ok:false,reason:'사람 Entity가 아님',profile:p};
+ if(hasAny(t,r.no))return {ok:false,reason:'카테고리와 충돌하는 Entity 종류',profile:p};
+ if(r.yes.length&&!hasAny(t,r.yes))return {ok:false,reason:'요구되는 Entity 종류를 확인하지 못함',profile:p};
+ if(!(await subjectRelationOK(p,section)))return {ok:false,reason:'주제 국가와의 구조적 관계를 확인하지 못함',profile:p};
+ return {ok:true,reason:'Entity 종류와 주제 관계 통과',profile:p};
+}
+
 const CANDIDATE_CHECK_CACHE=new Map();
-const CANDIDATE_TARGET=8;
+const CANDIDATE_TARGET=15;
 async function verifyCandidateTarget(section,target){
  const name=typeof target==='string'?target:target.name, source=typeof target==='string'?'discover':(target.source||'discover');
  const k=COUNTRY+'|'+section+'|'+normalizeItemName(name);
  if(CANDIDATE_CHECK_CACHE.has(k))return CANDIDATE_CHECK_CACHE.get(k);
  const promise=(async()=>{
    const e=await resolveWikipediaEntity(name,COUNTRY,section,source);if(!e)return null;
-   // 카드 한 장의 모든 핵심 정보는 같은 확정 Entity에서 온다.
-   return {name:e.displayName,title:e.title,entityId:e.entityId,pageId:e.pageId,desc:e.desc,photo:e.photo,quality:'entity-locked',sources:[e.source],diagnostic:e.diagnostic||{}};
+   // 후보명과 연결된 실제 Entity의 '종류'를 먼저 재확정한다. 설명 속 단어만으로 카테고리를 통과시키지 않는다.
+   const gate=await entityCategoryGate(e.entityId,section);if(!gate.ok)return null;
+   const gd={...(e.diagnostic||{}),entityGate:gate.reason,entityTypes:gate.profile?.typeLabels||[],entityParents:gate.profile?.parentLabels||[]};
+   return {name:e.displayName,title:e.title,entityId:e.entityId,pageId:e.pageId,desc:e.desc,photo:e.photo,quality:'entity-gated',sources:[e.source],diagnostic:gd};
  })();CANDIDATE_CHECK_CACHE.set(k,promise);return promise;
 }
 async function verifyCandidateOnce(section,name){return verifyCandidateTarget(section,{name,source:'seed'})}
@@ -912,8 +970,8 @@ async function previewCandidate(s,target,box){
   if(!verified){box.innerHTML='<div class="preview-card"><b>이 검색대상은 아직 확실한 하나의 대상으로 확인되지 않았습니다.</b><p>억지로 넣지 않고 다음 후보를 찾습니다.</p></div>';return;}
   const d=verified.diagnostic||{};
   const srcLabel=d.candidateSource==='seed'?'기본 후보풀(seed)':'자동 Wikipedia 발견';
-  const diagText=[`카테고리: ${SECTION_LABEL[s]}`,`후보명: ${name}`,`후보 원천: ${srcLabel}`,`실제 검색어: ${d.query||'-'}`,`확정 제목: ${verified.title}`,`Entity: ${verified.entityId}`,`이름점수: ${d.identityScore??'-'}`,`주제증거: ${d.subjectEvidence??'-'} [${(d.subjectTerms||[]).join(', ')}]`,`카테고리증거: ${d.categoryEvidence??'-'} [${(d.categoryTerms||[]).join(', ')}]`].join('\n');
-  box.innerHTML=`<div class="preview-card"><img src="${verified.photo}" alt="${esc(name)}"><h3>${esc(name)}</h3><p>${esc(verified.desc)}</p><p class="note">확정 대상: ${esc(verified.title)} · ${esc(verified.entityId)} · 자료원: ${esc(verified.sources.join(' + '))}</p><div class="diagnostic-panel ${d.candidateSource==='seed'?'diag-seed':'diag-auto'}"><h4>🩺 원인 진단 정보</h4><div class="diagnostic-grid"><b>카테고리</b><span>${esc(SECTION_LABEL[s])}</span><b>후보 원천</b><span>${esc(srcLabel)}</span><b>실제 검색어</b><span>${esc(d.query||'-')}</span><b>확정된 제목</b><span>${esc(verified.title)}</span><b>Entity ID</b><span>${esc(verified.entityId)}</span><b>이름 일치점수</b><span>${esc(String(d.identityScore??'-'))}</span><b>주제 증거</b><span>${esc(String(d.subjectEvidence??'-'))} · ${esc((d.subjectTerms||[]).join(', ')||'없음')}</span><b>카테고리 증거</b><span>${esc(String(d.categoryEvidence??'-'))} · ${esc((d.categoryTerms||[]).join(', ')||'없음')}</span></div><button class="diag-copy">진단정보 복사</button></div><div class="preview-actions"><button class="accept-candidate">⭐ 이 내용 그대로 추가하기</button><button class="skip-candidate">이번에는 넣지 않기</button></div></div>`;
+  const diagText=[`카테고리: ${SECTION_LABEL[s]}`,`후보명: ${name}`,`후보 원천: ${srcLabel}`,`실제 검색어: ${d.query||'-'}`,`확정 제목: ${verified.title}`,`Entity: ${verified.entityId}`,`이름점수: ${d.identityScore??'-'}`,`주제증거: ${d.subjectEvidence??'-'} [${(d.subjectTerms||[]).join(', ')}]`,`카테고리증거: ${d.categoryEvidence??'-'} [${(d.categoryTerms||[]).join(', ')}]`,`Entity 관문: ${d.entityGate||'-'}`,`Entity 종류: ${(d.entityTypes||[]).join(', ')||'-'}`].join('\n');
+  box.innerHTML=`<div class="preview-card"><img src="${verified.photo}" alt="${esc(name)}"><h3>${esc(name)}</h3><p>${esc(verified.desc)}</p><p class="note">확정 대상: ${esc(verified.title)} · ${esc(verified.entityId)} · 자료원: ${esc(verified.sources.join(' + '))}</p><div class="diagnostic-panel ${d.candidateSource==='seed'?'diag-seed':'diag-auto'}"><h4>🩺 원인 진단 정보</h4><div class="diagnostic-grid"><b>카테고리</b><span>${esc(SECTION_LABEL[s])}</span><b>후보 원천</b><span>${esc(srcLabel)}</span><b>실제 검색어</b><span>${esc(d.query||'-')}</span><b>확정된 제목</b><span>${esc(verified.title)}</span><b>Entity ID</b><span>${esc(verified.entityId)}</span><b>이름 일치점수</b><span>${esc(String(d.identityScore??'-'))}</span><b>주제 증거</b><span>${esc(String(d.subjectEvidence??'-'))} · ${esc((d.subjectTerms||[]).join(', ')||'없음')}</span><b>카테고리 증거</b><span>${esc(String(d.categoryEvidence??'-'))} · ${esc((d.categoryTerms||[]).join(', ')||'없음')}</span><b>Entity 재확정</b><span>${esc(d.entityGate||'-')}</span><b>Entity 종류</b><span>${esc((d.entityTypes||[]).join(', ')||'확인정보 없음')}</span></div><button class="diag-copy">진단정보 복사</button></div><div class="preview-actions"><button class="accept-candidate">⭐ 이 내용 그대로 추가하기</button><button class="skip-candidate">이번에는 넣지 않기</button></div></div>`;
   box.querySelector('.diag-copy').onclick=async()=>{try{await navigator.clipboard.writeText(diagText);alert('진단정보를 복사했습니다.')}catch(e){prompt('아래 진단정보를 복사해 주세요.',diagText)}};
   box.querySelector('.accept-candidate').onclick=async()=>{
    const btn=box.querySelector('.accept-candidate');if(btn)btn.disabled=true;
@@ -955,7 +1013,7 @@ async function previewCandidate(s,target,box){
 async function renderCandidates(s,host){
  const targets=await discoverCandidateTargets(COUNTRY,s);if(!targets.length)return;
  const active=getCustom(s),wrap=document.createElement('div');wrap.className='candidate-box';
- wrap.innerHTML=`<h3>✨ 추천할 만한 항목</h3><p class="note">5.2 검색방식은 그대로 두고, 각 후보가 왜 통과했는지 진단정보를 표시합니다. 지금은 정확도를 고치지 않고 원인을 찾는 시험판입니다.</p><div class="candidate-legend">🪄 좋은 후보를 찾고 있어요…</div><div class="candidate-chips"></div><div class="candidate-preview"></div>`;
+ wrap.innerHTML=`<h3>✨ 추천할 만한 항목</h3><p class="note">5.2의 풍부한 후보발굴은 유지하고, 확정 Entity의 실제 종류를 재확인합니다. 좋은 후보는 최대 15개까지 먼저 보여줍니다.</p><div class="candidate-legend">🪄 좋은 후보를 찾고 있어요…</div><div class="candidate-chips"></div><div class="candidate-preview"></div>`;
  host.parentElement.appendChild(wrap);const chips=wrap.querySelector('.candidate-chips'),legend=wrap.querySelector('.candidate-legend'),pv=wrap.querySelector('.candidate-preview');
  let passed=0,checked=0;const seen=new Set();
  // 4개씩 병렬 검사: 한 자료원이 느리거나 실패해도 다른 후보 검사는 계속된다.
