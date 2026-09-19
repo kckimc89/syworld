@@ -479,6 +479,51 @@ function genericContextScore(title,extract,name,subjectId,section){
  for(const h of [...r.ko,...r.en]) if(text.includes(String(h).toLowerCase())) score+=1;
  return score;
 }
+
+// ===== 범용 다중 자료원 + 검색대상 발굴 엔진 (Engine 3) =====
+// 원칙: 특정 후보를 살리는 예외를 두지 않는다. 자료원은 플러그인처럼 추가/제거할 수 있다.
+const SOURCE_REGISTRY={
+ wikipedia:{label:'Wikipedia',roles:['discover','text','photo'],categories:['*']},
+ wikimedia:{label:'Wikimedia',roles:['photo'],categories:['*']},
+ inaturalist:{label:'iNaturalist',roles:['discover','photo','verify'],categories:['animals']},
+ metmuseum:{label:'The Met Collection',roles:['discover','photo','verify'],categories:['art']}
+};
+function sourceEnabled(id,section){const x=SOURCE_REGISTRY[id];return !!x&&(x.categories.includes('*')||x.categories.includes(section));}
+function candidateDisplayName(v){return String(v||'').replace(/\s*[-–—|:]\s*Wikipedia.*$/i,'').replace(/\s*\([^)]*\)\s*$/,'').trim()}
+async function discoverWikipedia(subjectId,section,limit=18){
+ const p=subjectProfile(subjectId),r=CATEGORY_RULES[section]||{ko:[]}; const out=[];
+ const qs=[`${p.label} ${r.ko[0]||''}`,`${p.label} ${r.ko[1]||''}`].filter(Boolean);
+ for(const q of qs){try{const u='https://ko.wikipedia.org/w/api.php?action=query&list=search&srsearch='+encodeURIComponent(q)+'&srlimit='+limit+'&format=json&origin=*';const res=await fetch(u);if(!res.ok)continue;const j=await res.json();for(const h of j.query?.search||[]){if(/목록|분류|틀:|위키백과/.test(h.title||''))continue;out.push({name:candidateDisplayName(h.title),source:'wikipedia'});}}catch(e){}}
+ return out;
+}
+async function discoverINaturalist(subjectId,section,limit=18){
+ if(section!=='animals')return[];const p=subjectProfile(subjectId),out=[];
+ try{const u='https://api.inaturalist.org/v1/taxa?q='+encodeURIComponent(p.label)+'&per_page='+limit+'&order=desc&order_by=observations_count';const r=await fetch(u);if(!r.ok)return[];const j=await r.json();for(const x of j.results||[]){const n=x.preferred_common_name||x.name;if(n)out.push({name:n,source:'inaturalist',inat:x});}}catch(e){}
+ return out;
+}
+async function discoverMet(subjectId,section,limit=18){
+ if(section!=='art')return[];const p=subjectProfile(subjectId),out=[];
+ try{const u='https://collectionapi.metmuseum.org/public/collection/v1/search?hasImages=true&q='+encodeURIComponent(p.label);const r=await fetch(u);if(!r.ok)return[];const j=await r.json();for(const id of (j.objectIDs||[]).slice(0,Math.min(limit,10))){try{const rr=await fetch('https://collectionapi.metmuseum.org/public/collection/v1/objects/'+id);if(!rr.ok)continue;const x=await rr.json();if(x.title)out.push({name:x.title,source:'metmuseum',met:x});}catch(e){}}}catch(e){}
+ return out;
+}
+async function discoverCandidateTargets(subjectId,section){
+ const seed=[...new Set(CANDIDATES[subjectId]?.[section]||[])].map(name=>({name,source:'seed'}));
+ const jobs=[discoverWikipedia(subjectId,section,18)];
+ if(sourceEnabled('inaturalist',section))jobs.push(discoverINaturalist(subjectId,section,16));
+ if(sourceEnabled('metmuseum',section))jobs.push(discoverMet(subjectId,section,12));
+ const found=(await Promise.all(jobs)).flat(); const seen=new Set(),out=[];
+ // 실제 검색으로 발견한 대상을 먼저, 기존 목록은 부족할 때만 보조 후보로 사용한다.
+ for(const x of [...found,...seed]){const n=candidateDisplayName(x.name),k=normalizeItemName(n);if(!n||!k||seen.has(k))continue;seen.add(k);out.push({...x,name:n});}
+ return out.slice(0,40);
+}
+async function iNatPhoto(name){try{const r=await fetch('https://api.inaturalist.org/v1/taxa?q='+encodeURIComponent(name)+'&per_page=5&order=desc&order_by=observations_count');if(!r.ok)return'';const j=await r.json();for(const x of j.results||[]){const u=x.default_photo?.medium_url||x.default_photo?.url;if(u)return u;}}catch(e){}return'';}
+async function metPhoto(name){try{const r=await fetch('https://collectionapi.metmuseum.org/public/collection/v1/search?hasImages=true&q='+encodeURIComponent(name));if(!r.ok)return'';const j=await r.json();for(const id of (j.objectIDs||[]).slice(0,5)){try{const rr=await fetch('https://collectionapi.metmuseum.org/public/collection/v1/objects/'+id);if(!rr.ok)continue;const x=await rr.json();if(x.primaryImageSmall)return x.primaryImageSmall;}catch(e){}}}catch(e){}return'';}
+async function multiSourcePhoto(name,subjectId,section){
+ // 분야별 전문 자료원을 먼저 확인하고, 범용 Wikimedia/Wikipedia 사진 검색으로 보완한다.
+ if(section==='animals'){const u=await iNatPhoto(name);if(u)return {url:u,source:'iNaturalist'};}
+ if(section==='art'){const u=await metPhoto(name);if(u)return {url:u,source:'The Met Collection'};}
+ const u=await autoPhoto(name,subjectId,section);return u?{url:u,source:'Wikimedia/Wikipedia'}:null;
+}
 const CANDIDATES={
  ES:{
   food:['파에야','감바스 알 아히요','또르띠야 에스파뇰라','추로스','가스파초','하몽 이베리코','크로케타','판 콘 토마테','풀포 아 라 가예가','크레마 카탈라나','피스토','보카디요'],
@@ -788,9 +833,9 @@ async function verifyCandidateOnce(section,name){
  const p=(async()=>{
    const d=await genericDescription(name,COUNTRY,section);
    if(!d)return null;
-   const photo=await autoPhoto(name,COUNTRY,section);
-   if(!photo)return {name,desc:d.desc,photo:'',quality:'text-only'};
-   return {name,desc:d.desc,photo,quality:'recommended'};
+   const ph=await multiSourcePhoto(name,COUNTRY,section);
+   if(!ph)return {name,desc:d.desc,photo:'',quality:'text-only',sources:['Wikipedia']};
+   return {name,desc:d.desc,photo:ph.url,quality:'recommended',sources:['Wikipedia',ph.source]};
  })();
  CANDIDATE_CHECK_CACHE.set(k,p);return p;
 }
@@ -801,15 +846,15 @@ async function previewCandidate(s,name,box){
   const verified=await verifyCandidateOnce(s,name);if(box.dataset.previewToken!==token)return;
   if(!verified){box.innerHTML='<div class="preview-card"><b>이 항목은 추천후보 기준을 통과하지 못했습니다.</b></div>';return;}
   if(!verified.photo){box.innerHTML='<div class="preview-card"><b>대표사진을 안정적으로 찾지 못했습니다.</b><p>추천후보에서는 제외하고 다른 후보를 보여줍니다.</p></div>';return;}
-  box.innerHTML=`<div class="preview-card"><img src="${verified.photo}" alt="${esc(name)}"><h3>${esc(name)}</h3><p>${esc(verified.desc)}</p><div class="preview-actions"><button class="accept-candidate">⭐ 이 내용 그대로 추가하기</button><button class="skip-candidate">이번에는 넣지 않기</button></div></div>`;
+  box.innerHTML=`<div class="preview-card"><img src="${verified.photo}" alt="${esc(name)}"><h3>${esc(name)}</h3><p>${esc(verified.desc)}</p><p class="note">자료원: ${esc((verified.sources||[]).join(' + '))}</p><div class="preview-actions"><button class="accept-candidate">⭐ 이 내용 그대로 추가하기</button><button class="skip-candidate">이번에는 넣지 않기</button></div></div>`;
   box.querySelector('.accept-candidate').onclick=async()=>{const btn=box.querySelector('.accept-candidate');if(btn)btn.disabled=true;try{const a=getCustom(s);if(hasIdentity(name,a)){alert('이미 같은 항목이 있습니다.');return;}const id=newItemId();a.push({id,name,desc:verified.desc,emoji:'⭐',source:'recommended',photoVerified:true});setCustom(s,a);await setUserPhoto(`photo_${DATA_NS}${COUNTRY}_${s}_${id}`,verified.photo);box.innerHTML='';await renderSection(s)}catch(e){alert('추가 중 오류가 발생했습니다. 다시 시도해 주세요.');if(btn)btn.disabled=false;}};
   box.querySelector('.skip-candidate').onclick=()=>{box.dataset.previewToken='';box.innerHTML=''};
  }catch(e){if(box.dataset.previewToken===token)box.innerHTML='<div class="preview-card"><b>확인 중 오류가 있었습니다.</b><p>다른 후보를 선택해 주세요.</p></div>';}
 }
 async function renderCandidates(s,host){
- const pool=[...new Set(CANDIDATES[COUNTRY]?.[s]||[])];if(!pool.length)return;
+ const targets=await discoverCandidateTargets(COUNTRY,s); const pool=targets.map(x=>x.name);if(!pool.length)return;
  const active=getCustom(s);const wrap=document.createElement('div');wrap.className='candidate-box';
- wrap.innerHTML=`<h3>✨ 추천할 만한 항목</h3><p class="note">후보를 넉넉히 확인한 뒤, 설명과 대표사진이 모두 안정적인 항목을 먼저 보여줍니다.</p><div class="candidate-legend">🪄 좋은 후보를 고르는 중…</div><div class="candidate-chips"></div><div class="candidate-preview"></div>`;
+ wrap.innerHTML=`<h3>✨ 추천할 만한 항목</h3><p class="note">여러 자료원에서 검색대상을 먼저 발굴한 뒤, 설명과 대표사진이 모두 안정적인 항목만 보여줍니다.</p><div class="candidate-legend">🪄 여러 자료원에서 검색대상을 찾고 검증하는 중…</div><div class="candidate-chips"></div><div class="candidate-preview"></div>`;
  host.parentElement.appendChild(wrap);const chips=wrap.querySelector('.candidate-chips'), legend=wrap.querySelector('.candidate-legend'), pv=wrap.querySelector('.candidate-preview');
  let passed=0, checked=0;
  // 화면을 막지 않도록 한 항목씩 검사하고, 합격한 후보부터 즉시 보여줍니다.
@@ -825,7 +870,7 @@ async function renderCandidates(s,host){
    legend.textContent=`🪄 후보 ${checked}/${pool.length} 확인 · 사진과 설명이 좋은 후보 ${passed}개`;
    if(passed>=CANDIDATE_TARGET && checked>=Math.min(pool.length,CANDIDATE_TARGET+2))break;
  }
- legend.textContent=passed?`✓ 사진과 설명을 확인한 추천후보 ${passed}개`:'이번에는 추천 기준을 통과한 후보를 찾지 못했습니다.';
+ legend.textContent=passed?`✓ 여러 자료원에서 사진과 설명을 확인한 추천후보 ${passed}개`:'이번에는 추천 기준을 통과한 후보를 찾지 못했습니다.';
 }
 async function renderSection(s){
  const el=document.getElementById(s+'List'); el.parentElement.querySelectorAll('.candidate-box').forEach(x=>x.remove());
