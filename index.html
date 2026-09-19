@@ -549,7 +549,7 @@ function subjectEvidence(subjectId,text){
  const p=subjectProfile(subjectId),t=String(text||'').toLowerCase();
  return p.aliases.reduce((n,w)=>n+(t.includes(String(w).toLowerCase())?1:0),0);
 }
-// Engine 7: "좋다는 증거가 부족하다"와 "분명히 틀렸다"를 구분한다.
+// Engine 8: "좋다는 증거가 부족하다"와 "분명히 틀렸다"를 구분한다.
 // 명백한 종류 모순만 탈락시키고, 애매한 seed 후보는 보존한다.
 const HARD_CONTRADICTIONS={
  food:['국가이다','나라이다','전쟁','내전','국가대표팀'],
@@ -925,14 +925,71 @@ async function genericDescription(name,subjectId,section){
 }
 const CANDIDATE_CHECK_CACHE=new Map();
 
+
+// ===== Engine 8: 구조화된 카테고리 적합성 검증 =====
+// 제목/설명의 단어만으로 판정하지 않고, 확정 Entity의 Wikidata 구조(P31=종류, P106=직업)를 함께 본다.
+// 정보가 모자라면 기존 Entity-first 결과를 보존하지만, 구조상 다른 종류임이 확인되면 제외한다.
+const WD_TYPE_CACHE=new Map();
+async function wikidataTypeEvidence(entityId){
+ if(!/^Q\d+$/.test(String(entityId||'')))return null;
+ if(WD_TYPE_CACHE.has(entityId))return WD_TYPE_CACHE.get(entityId);
+ const job=(async()=>{try{
+  const u='https://www.wikidata.org/w/api.php?action=wbgetentities&ids='+encodeURIComponent(entityId)+'&props=claims|labels|descriptions&languages=ko|en&languagefallback=1&format=json&origin=*';
+  const r=await fetch(u);if(!r.ok)return null;const j=await r.json(),e=j.entities?.[entityId];if(!e)return null;
+  const ids=[];for(const prop of ['P31','P106'])for(const c of e.claims?.[prop]||[]){const id=c.mainsnak?.datavalue?.value?.id;if(id)ids.push(id)}
+  const uniq=[...new Set(ids)];let typeText='';
+  if(uniq.length){const rr=await fetch('https://www.wikidata.org/w/api.php?action=wbgetentities&ids='+uniq.join('|')+'&props=labels|descriptions&languages=ko|en&languagefallback=1&format=json&origin=*');if(rr.ok){const jj=await rr.json();typeText=uniq.map(id=>{const x=jj.entities?.[id]||{};return [x.labels?.ko?.value,x.labels?.en?.value,x.descriptions?.ko?.value,x.descriptions?.en?.value].filter(Boolean).join(' ')}).join(' ')}}
+  return {entityId,instanceIds:(e.claims?.P31||[]).map(c=>c.mainsnak?.datavalue?.value?.id).filter(Boolean),occupationIds:(e.claims?.P106||[]).map(c=>c.mainsnak?.datavalue?.value?.id).filter(Boolean),typeText:typeText.toLowerCase()};
+ }catch(e){return null}})();WD_TYPE_CACHE.set(entityId,job);return job;
+}
+const TYPE_POSITIVE={
+ food:['food','dish','cuisine','음식','요리','빵','수프','디저트','cheese','치즈','beverage','drink'],
+ animals:['taxon','species','plant','animal','organism','tree','shrub','bird','mammal','reptile','insect','식물','동물','생물','분류군','종','나무','조류','포유류'],
+ places:['building','architectural','city','municipality','village','mountain','island','park','museum','church','cathedral','palace','monument','site','place','location','건축','도시','마을','산','섬','공원','박물관','성당','궁전','유적','장소'],
+ culture:['festival','tradition','cultural','dance','music genre','custom','sport','ritual','heritage','축제','전통','문화','무용','춤','음악 장르','풍습','의례'],
+ singers:['singer','musician','vocalist','rapper','songwriter','guitarist','가수','음악가','성악가','래퍼','싱어송라이터','기타리스트'],
+ athletes:['athlete','player','footballer','tennis player','racing driver','swimmer','cyclist','sportsperson','운동선수','선수','축구','테니스','레이싱','수영'],
+ people:['human','person','writer','painter','architect','politician','scientist','explorer','poet','novelist','king','queen','사람','인간','작가','화가','건축가','정치인','과학자','탐험가','시인','왕'],
+ art:['painting','artwork','creative work','literary work','novel','film','sculpture','musical work','composition','fresco','작품','회화','그림','소설','영화','조각','음악 작품','벽화']
+};
+const TYPE_NEGATIVE={
+ food:['human','person','country','state','war','team','사람','국가','나라','전쟁','대표팀'],
+ animals:['human','person','country','war','painting','artwork','oil','album','city','사람','국가','전쟁','회화','작품','오일','음반','도시'],
+ places:['human','person','war','battle','song','novel','film','사람','전쟁','전투','노래','소설','영화'],
+ culture:['human','person','country','state','team','composer','singer','actor','사람','국가','대표팀','작곡가','가수','배우'],
+ singers:['sports team','football team','athlete','player','actor','대표팀','운동선수','축구 선수','배우'],
+ athletes:['sports team','football team','singer','musician','composer','writer','painter','대표팀','가수','음악가','작곡가','작가','화가'],
+ people:['sports team','football team','country','city','museum','organization','대표팀','국가','도시','박물관','조직'],
+ art:['human','person','painter','writer','singer','actor','museum','city','municipality','사람','화가','작가','가수','배우','박물관','도시']
+};
+async function structuredCategoryCheck(section,verified){
+ const ev=await wikidataTypeEvidence(verified.entityId);if(!ev||!ev.typeText)return {ok:true,reason:'no-structured-type'};
+ const t=ev.typeText;
+ const pos=(TYPE_POSITIVE[section]||[]).some(w=>t.includes(w));
+ const neg=(TYPE_NEGATIVE[section]||[]).some(w=>t.includes(w));
+ // 사람 카테고리는 Q5(인간)를 가장 강한 구조 증거로 사용한다.
+ const human=ev.instanceIds.includes('Q5');
+ if(['singers','athletes','people'].includes(section)){
+   if(ev.instanceIds.length&& !human && neg)return {ok:false,reason:'structured-mismatch'};
+   if(human && section==='people')return {ok:true,reason:'human'};
+   if(human && pos)return {ok:true,reason:'human-occupation'};
+   if(neg)return {ok:false,reason:'structured-mismatch'};
+   return {ok:true,reason:'uncertain-preserve'};
+ }
+ if(neg&&!pos)return {ok:false,reason:'structured-mismatch'};
+ return {ok:true,reason:pos?'structured-match':'uncertain-preserve'};
+}
 async function verifyCandidateTarget(section,target){
  const name=typeof target==='string'?target:target.name, source=typeof target==='string'?'discover':(target.source||'discover');
  const k=COUNTRY+'|'+section+'|'+normalizeItemName(name);
  if(CANDIDATE_CHECK_CACHE.has(k))return CANDIDATE_CHECK_CACHE.get(k);
  const promise=(async()=>{
    const e=await resolveWikipediaEntity(name,COUNTRY,section,source);if(!e)return null;
+   const locked={name:e.displayName,title:e.title,entityId:e.entityId,pageId:e.pageId,desc:e.desc,photo:e.photo,quality:'entity-locked',sources:[e.source]};
+   const typeCheck=await structuredCategoryCheck(section,locked);if(!typeCheck.ok)return null;
+   locked.categoryCheck=typeCheck.reason;
    // 카드 한 장의 모든 핵심 정보는 같은 확정 Entity에서 온다.
-   return {name:e.displayName,title:e.title,entityId:e.entityId,pageId:e.pageId,desc:e.desc,photo:e.photo,quality:'entity-locked',sources:[e.source]};
+   return locked;
  })();CANDIDATE_CHECK_CACHE.set(k,promise);return promise;
 }
 async function verifyCandidateOnce(section,name){return verifyCandidateTarget(section,{name,source:'seed'})}
@@ -972,7 +1029,7 @@ async function previewCandidate(s,target,box){
     alert(msg);if(btn)btn.disabled=false;return;
    }
    // 화면 갱신 실패를 저장 실패로 오해하지 않도록 저장과 렌더링 오류를 분리한다.
-   try{await renderSection(s)}catch(e){
+   try{await renderSection(s,{preserveCandidates:true});updateCandidateAddedState(s)}catch(e){
     console.error('render after save failed',e);
     box.innerHTML='<div class="preview-card"><b>✓ 저장은 완료되었습니다.</b><p>화면 갱신만 지연되고 있어요. 다른 카테고리로 이동했다 돌아오면 카드가 보입니다.</p></div>';
    }
@@ -984,7 +1041,7 @@ const CANDIDATE_FIRST_SHOW=15;
 async function renderCandidates(s,host){
  const targets=await discoverCandidateTargets(COUNTRY,s);if(!targets.length)return;
  const active=getCustom(s),wrap=document.createElement('div');wrap.className='candidate-box';
- wrap.innerHTML=`<h3>✨ 추천할 만한 항목</h3><p class="note">Engine 5의 후보 발굴력을 살리고, 명백히 다른 종류의 Entity만 제외합니다. 8개 미만이면 넓힌 검색 후보까지 계속 확인하고, 좋은 후보는 15개까지 먼저 보여줍니다.</p><div class="candidate-legend">🪄 좋은 후보를 찾고 있어요…</div><div class="candidate-chips"></div><div class="candidate-more"></div><div class="candidate-preview"></div>`;
+ wrap.innerHTML=`<h3>✨ 추천할 만한 항목</h3><p class="note">사진·설명이 확정된 Entity의 구조화된 종류와 직업까지 확인합니다. 후보는 한 번 찾으면 그대로 유지하며, 항목을 추가해도 다시 검색하지 않습니다.</p><div class="candidate-legend">🪄 좋은 후보를 찾고 있어요…</div><div class="candidate-chips"></div><div class="candidate-more"></div><div class="candidate-preview"></div>`;
  host.parentElement.appendChild(wrap);const chips=wrap.querySelector('.candidate-chips'),more=wrap.querySelector('.candidate-more'),legend=wrap.querySelector('.candidate-legend'),pv=wrap.querySelector('.candidate-preview');
  let checked=0;const good=[];
  for(let i=0;i<targets.length;i+=4){
@@ -1004,8 +1061,12 @@ async function renderCandidates(s,host){
  legend.textContent=good.length?`✓ 좋은 후보 ${good.length}개 · ${Math.min(good.length,CANDIDATE_FIRST_SHOW)}개를 먼저 보여드려요${rest?` · 나머지 ${rest}개는 더 보기`:''}${good.length<8?' · 더 찾아도 8개에 못 미쳐 억지로 채우지 않았습니다':''}`:'확실한 후보를 찾지 못했습니다. 엉뚱한 항목으로 숫자를 채우지 않습니다.';
 }
 
-async function renderSection(s){
- const el=document.getElementById(s+'List'); el.parentElement.querySelectorAll('.candidate-box').forEach(x=>x.remove());
+
+function updateCandidateAddedState(s){
+ const active=getCustom(s);document.querySelectorAll('#'+s+'List ~ .candidate-box .candidate-chip[data-name]').forEach(b=>{const added=hasIdentity(b.dataset.name,active);b.disabled=added;b.classList.toggle('added',added);b.classList.toggle('available',!added);});
+}
+async function renderSection(s,opts={}){
+ const el=document.getElementById(s+'List'); if(!opts.preserveCandidates)el.parentElement.querySelectorAll('.candidate-box').forEach(x=>x.remove());
  // 요술방망이 엔진 2는 사전등록 기본카드 없이 아이가 추가한 카드만 표시합니다.
  const merged=[...getCustom(s)]; const arr=[]; for(const x of merged){if(!hasIdentity(x.name,arr))arr.push(x)}
  el.innerHTML=''; const deletedNamesEl=document.getElementById(s+'DeletedNames'); if(deletedNamesEl){const ds=getDeletedBase(s).filter(n=>!hasIdentity(n,arr));deletedNamesEl.innerHTML=ds.length?`<b>↩ 전에 삭제한 항목</b> · `+ds.map(n=>`<button class="candidate-chip deleted-retry" data-name="${esc(n)}">${esc(n)}</button>`).join(' '):'';deletedNamesEl.querySelectorAll?.('.deleted-retry').forEach(b=>b.onclick=()=>addItem(s,b.dataset.name));}
@@ -1027,7 +1088,7 @@ async function renderSection(s){
    };
    el.appendChild(card);
  }
- await renderCandidates(s,el);
+ if(!opts.preserveCandidates)await renderCandidates(s,el);else updateCandidateAddedState(s);
 }
 async function lookupDescription(name,country,section){
  const c=countries[country]; const queries=[name+' '+c.name,name];
