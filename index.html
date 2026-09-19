@@ -395,7 +395,7 @@ function openCountry(code){COUNTRY=code;let c=countries[code];document.getElemen
 document.getElementById('backBtn').onclick=()=>{document.getElementById('detail').classList.add('hidden');document.getElementById('home').classList.remove('hidden');document.getElementById('nav').classList.add('hidden');document.getElementById('backBtn').classList.add('hidden');document.getElementById('countryTitle').textContent='';window.scrollTo(0,0)};
 // ===== 요술방망이 엔진 2 테스트용: 삭제 PIN 일시 중지 =====
 function requireDeletePin(){ return true; }
-const DATA_NS='magic_engine5_'; // 5.1은 같은 저장공간을 사용해 엔진5 시험 데이터를 유지
+const DATA_NS='magic_engine5_'; // 5.2도 같은 저장공간을 사용해 엔진5 시험 데이터를 유지
 function key(section){return `${DATA_NS}custom_${COUNTRY}_${section}`}
 function editKey(s,id){return `${DATA_NS}edit_${COUNTRY}_${s}_${id}`}
 function confirmedDescKey(country,s,id){return `${DATA_NS}confirmed_${country}_${s}_${id}`}
@@ -403,7 +403,21 @@ function deletedBaseKey(s){return `${DATA_NS}deleted_${COUNTRY}_${s}`}
 function getDeletedBase(s){try{return JSON.parse(localStorage.getItem(deletedBaseKey(s))||'[]')}catch{return[]}}
 function setDeletedBase(s,a){localStorage.setItem(deletedBaseKey(s),JSON.stringify([...new Set(a)]))}
 function getCustom(s){try{return JSON.parse(localStorage.getItem(key(s))||'[]')}catch{return[]}}
-function setCustom(s,a){localStorage.setItem(key(s),JSON.stringify(a))}
+function isQuotaError(e){return !!e&&(e.name==='QuotaExceededError'||e.name==='NS_ERROR_DOM_QUOTA_REACHED'||e.code===22||e.code===1014)}
+function clearExpendableSearchCaches(){
+ const prefixes=['magicwand_photo_','place_desc_v30_','rebuilt_','autophoto_','trial_candidates_used_'];
+ const keys=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&prefixes.some(p=>k.startsWith(p)))keys.push(k)}
+ keys.forEach(k=>localStorage.removeItem(k));return keys.length;
+}
+function setCustom(s,a){
+ const k=key(s),payload=JSON.stringify(a);
+ try{localStorage.setItem(k,payload);return true}catch(e){
+  if(!isQuotaError(e))throw e;
+  // 검색 결과 캐시는 다시 만들 수 있으므로 지우고, 사용자가 만든 카드 데이터는 건드리지 않는다.
+  clearExpendableSearchCaches();
+  localStorage.setItem(k,payload);return true;
+ }
+}
 function esc(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 function newItemId(){try{if(globalThis.crypto&&typeof globalThis.crypto.randomUUID==='function')return 'u_'+Date.now().toString(36)+'_'+globalThis.crypto.randomUUID()}catch(e){}return 'u_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2)+'_'+Math.random().toString(36).slice(2)}
 
@@ -917,7 +931,9 @@ async function previewCandidate(s,target,box){
     if(!saved)throw new Error('local save failed');
     box.innerHTML='<div class="preview-card"><b>✓ 내 백과사전에 추가했어요.</b></div>';
    }catch(e){
-    alert('저장하지 못했습니다. 기기 저장공간을 확인한 뒤 다시 시도해 주세요.');if(btn)btn.disabled=false;return;
+    console.error('card save failed',e);
+    const msg=isQuotaError(e)?'기기의 웹 저장공간이 가득 차 저장하지 못했습니다. 검색 임시자료를 정리한 뒤에도 공간이 부족합니다.':'카드 저장 중 오류가 발생했습니다. 오류 종류: '+(e?.name||'알 수 없음');
+    alert(msg);if(btn)btn.disabled=false;return;
    }
    // 화면 갱신 실패를 저장 실패로 오해하지 않도록 저장과 렌더링 오류를 분리한다.
    try{await renderSection(s)}catch(e){
