@@ -1021,9 +1021,86 @@ async function verifyCandidateTarget(section,target){
  })(); CANDIDATE_CHECK_CACHE.set(k,promise); return promise;
 }
 async function verifyCandidateOnce(section,name){return verifyCandidateTarget(section,{name,source:'seed'})}
+
+// ===== Engine 16.1: frozen-snapshot add path =====
+// 후보 미리보기가 완성된 뒤에는 검색/검증/사진조회/후보 재생성을 절대 하지 않는다.
+let E161_PREVIEW_SNAPSHOT=null;
+
+function e161Snapshot(section,v){
+ return {
+   id:newItemId(),
+   name:v.name||v.title||'',
+   title:v.title||v.name||'',
+   desc:v.desc||'',
+   emoji:'⭐',
+   source:'recommended',
+   photoVerified:!!v.photo,
+   photoRemote:v.photo||'',
+   entityId:v.entityId||'',
+   entityTitle:v.title||v.name||'',
+   pageId:v.pageId||'',
+   sources:Array.isArray(v.sources)?v.sources:[],
+   evidenceScore:Number(v.evidenceScore||0),
+   addedAt:Date.now()
+ };
+}
+
+function e161MarkCandidateAdded(section,item){
+ try{
+   document.querySelectorAll(`button[data-section="${section}"], .candidate-box button`).forEach(btn=>{
+     const txt=(btn.textContent||'').trim();
+     if(txt===item.name || txt===item.title){
+       btn.disabled=true;
+       btn.textContent='✓ '+txt.replace(/^✓\s*/,'')+' · 추가됨';
+       btn.style.opacity='.58';
+     }
+   });
+ }catch(e){console.warn('mark candidate',e)}
+}
+
+async function e161AppendCard(section,item){
+ // 가장 안전한 경로: 저장 데이터는 확정된 뒤 기존 카드 렌더러만 호출하되 후보영역은 보존.
+ // 검색/검증 함수는 호출하지 않는다.
+ const y=window.scrollY;
+ try{
+   await renderSection(section,{preserveCandidates:true});
+ }catch(e){
+   console.warn('card render fallback',e);
+ }
+ requestAnimationFrame(()=>window.scrollTo({top:y,behavior:'auto'}));
+}
+
+async function e161SaveFrozen(section,snapshot,button){
+ if(!snapshot || !snapshot.name || !snapshot.desc){
+   alert('미리보기 정보가 완성되지 않았습니다. 후보를 다시 열어 주세요.');
+   return;
+ }
+ if(button){button.disabled=true;button.textContent='저장 중…'}
+ try{
+   // 현재 저장소에 있는 사용자 항목을 읽고 스냅샷 자체만 저장한다.
+   const current=getCustom(section);
+   const dup=current.some(x=>
+     (snapshot.entityId && x.entityId===snapshot.entityId) ||
+     normalizeItemName(x.name||'')===normalizeItemName(snapshot.name||'')
+   );
+   if(!dup){
+     current.push({...snapshot});
+     setCustom(section,current);
+   }
+   e161MarkCandidateAdded(section,snapshot);
+   if(button){button.textContent='✓ 내 백과사전에 추가했어요'}
+   await e161AppendCard(section,snapshot);
+ }catch(err){
+   console.error('E16.1 frozen add failed',err);
+   if(button){button.disabled=false;button.textContent='⭐ 이 내용 그대로 추가하기'}
+   const msg=String(err?.message||err||'');
+   alert('추가 저장 중 오류가 발생했습니다.'+(msg?'\n'+msg:''));
+ }
+}
 async function previewCandidate(s,target,box){
  const name=typeof target==='string'?target:target.name, token=String(Date.now())+Math.random();box.dataset.previewToken=token;
- box.innerHTML='<div class="preview-card">🔎 같은 대상을 가리키는 설명과 사진인지 확인하고 있어요…</div>';
+ E161_PREVIEW_SNAPSHOT=e161Snapshot(s,v);
+box.innerHTML='<div class="preview-card">🔎 같은 대상을 가리키는 설명과 사진인지 확인하고 있어요…</div>';
  try{
   const verified=await verifyCandidateTarget(s,target);if(box.dataset.previewToken!==token)return;
   if(!verified){box.innerHTML='<div class="preview-card"><b>이 검색대상은 아직 확실한 하나의 대상으로 확인되지 않았습니다.</b><p>억지로 넣지 않고 다음 후보를 찾습니다.</p></div>';return;}
@@ -1068,6 +1145,18 @@ async function previewCandidate(s,target,box){
   };
   box.querySelector('.skip-candidate').onclick=()=>{box.dataset.previewToken='';box.innerHTML=''};
  }catch(e){if(box.dataset.previewToken===token)box.innerHTML='<div class="preview-card"><b>확인 중 오류가 있었습니다.</b><p>다른 후보를 선택해 주세요.</p></div>';}
+
+ // Engine16.1: 기존 추가 핸들러보다 먼저 가로채 frozen snapshot만 저장
+ const e161Root=document.getElementById(s+'Preview')||document.getElementById(s+'CandidatePreview')||document;
+ const e161Buttons=[...e161Root.querySelectorAll('button')];
+ const e161Add=e161Buttons.find(b=>(b.textContent||'').includes('이 내용 그대로 추가하기'));
+ if(e161Add && !e161Add.dataset.e161){
+   e161Add.dataset.e161='1';
+   e161Add.addEventListener('click',async ev=>{
+     ev.preventDefault(); ev.stopImmediatePropagation();
+     await e161SaveFrozen(s,E161_PREVIEW_SNAPSHOT,e161Add);
+   },true);
+ }
 }
 async function renderCandidates(s,host){
  const targets=await discoverCandidateTargets(COUNTRY,s);if(!targets.length)return;
