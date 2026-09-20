@@ -1749,11 +1749,19 @@ function openRepresentativePreview(section,name,verified,panel){
      photoVerified:true,photoRemote:String(pv.querySelector('input[name="v3photo"]:checked')?.value||verified.photo||''),entityId:String(verified.entityId||''),
      entityTitle:String(verified.title||''),pageId:verified.pageId==null?'':String(verified.pageId),
      sources:Array.isArray(verified.sources)?verified.sources.map(String):[]};
+   const saveCountry=String(COUNTRY||'');
    try{
-     setCustom(section,[...a,item]);
-     if(!getCustom(section).some(x=>x.id===item.id))throw new Error('card save failed');
-     setDeletedBase(section,getDeletedBase(section).filter(n=>!sameIdentity(n,name)));
-   }catch(e){alert('카드를 저장하지 못했습니다. 저장공간을 확인해 주세요.');return;}
+     const ok=setCustom(section,[...a,item]);
+     const raw=localStorage.getItem(`${DATA_NS}custom_${saveCountry}_${section}`)||'[]';
+     const saved=JSON.parse(raw).some(x=>x.id===item.id);
+     if(ok!==true||!saved)throw new Error('primary card save verification failed');
+   }catch(e){
+     console.error('[V19] primary card save failed',e);
+     alert(isQuotaError(e)?'카드 저장공간이 실제로 부족합니다. 백업 후 저장공간 정리가 필요합니다.':'카드 저장 중 오류가 발생했습니다. 다시 한 번 눌러 주세요.');
+     return;
+   }
+   // Secondary bookkeeping must never turn a successful card save into a false failure.
+   try{setDeletedBase(section,getDeletedBase(section).filter(n=>!sameIdentity(n,name)))}catch(e){console.warn('[V19] deleted-list update skipped',e)}
    // V18: renderSection can replace DOM children. Reattach the panel from preserved state;
    // v16RunQueue is idempotent, so this never restarts a completed/in-flight search.
    await renderSection(section);
@@ -1787,9 +1795,17 @@ async function v18ManualAssist(section,typedName){
      pv.querySelector('.v18-manual-save').onclick=async()=>{
        const a=getCustom(section);if(hasIdentity(h.title,a)){alert('이미 같은 항목이 있습니다.');return}
        const item={id:newItemId(),name:h.title,desc:found.desc,emoji:'⭐',source:'manual',photoVerified:!!photo,photoRemote:photo};
-       try{setCustom(section,[...a,item]);if(!getCustom(section).some(x=>x.id===item.id))throw new Error('save');}
-       catch(e){alert('카드를 저장하지 못했습니다.');return}
+       const saveCountry=String(COUNTRY||'');
+       try{
+         const ok=setCustom(section,[...a,item]);
+         const raw=localStorage.getItem(`${DATA_NS}custom_${saveCountry}_${section}`)||'[]';
+         if(ok!==true||!JSON.parse(raw).some(x=>x.id===item.id))throw new Error('primary save verification failed');
+       }catch(e){
+         console.error('[V19] assisted save failed',e);
+         alert(isQuotaError(e)?'카드 저장공간이 실제로 부족합니다.':'카드 저장 중 오류가 발생했습니다. 다시 시도해 주세요.');return
+       }
        await renderSection(section);await renderRepresentativeCardButtonsV5(section);
+       v16MarkRegisteredInPlace(section,h.title);
      };
    };
  }
@@ -1805,6 +1821,12 @@ function manualRepresentative(section,name){
 // Search cache is NOT included in user backup and can be rebuilt without affecting registered cards.
 // Only newly uploaded user photos are resized; existing photos are never recompressed automatically.
 
+
+// V19 storage diagnostic: remote preview/card photos are URLs, not image bytes in localStorage.
+function v19StorageDiagnostic(){
+ let chars=0,keys=0;for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k){keys++;chars+=k.length+(localStorage.getItem(k)||'').length}}
+ return {keys,approxBytes:chars*2,country:String(COUNTRY||'')};
+}
 // V18: save/preview repair + assisted manual search.
 // V17: country-isolated representative state. No item from one country may leak into another.
 // V16: representative panel is persistent. Search state and DOM are decoupled.
