@@ -1,1 +1,26 @@
-{"name":"요술방망이 범용 백과 엔진","short_name":"요술방망이","start_url":"./index.html","display":"standalone","background_color":"#fffaf0","theme_color":"#ffffff","icons":[{"src":"icon-192.png","sizes":"192x192","type":"image/png"},{"src":"icon-512.png","sizes":"512x512","type":"image/png"},{"src":"icon-512-maskable.png","sizes":"512x512","type":"image/png","purpose":"maskable"}]}
+{
+  "name": "요술방망이 범용 백과 엔진 5",
+  "short_name": "요술방망이",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#fffaf0",
+  "theme_color": "#ffffff",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
