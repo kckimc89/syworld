@@ -972,7 +972,7 @@ const CANDIDATE_CHECK_CACHE=new Map();
 const CANDIDATE_TARGET=8;
 async function verifyCandidateTarget(section,target){
  const name=typeof target==='string'?target:target.name, source=typeof target==='string'?'discover':(target.source||'discover');
- const k=COUNTRY+'|'+section+'|'+normalizeItemName(name);
+ const k='entity-v2|'+COUNTRY+'|'+section+'|'+normalizeItemName(name);
  if(CANDIDATE_CHECK_CACHE.has(k))return CANDIDATE_CHECK_CACHE.get(k);
  const promise=(async()=>{
    const e=await resolveWikipediaEntity(name,COUNTRY,section,source);if(!e)return null;
@@ -1036,48 +1036,108 @@ function representativeNames(country,section){
    .map(x=>x.replace(/^《|》$/g,'').replace(/\s*[—–-]\s*(테니스|축구|농구|야구|수영|체조|피겨스케이팅|자동차 경주).*$/,'').trim())
    .filter(Boolean))];
 }
+
 function categorySearchWords(section){
- return {food:['음식','요리'],animals:['동물','식물'],places:['명소','장소'],culture:['문화','전통'],singers:['가수','음악가'],athletes:['운동선수','스포츠'],people:['역사','인물'],art:['예술작품','미술','작품']}[section]||[];
+ return {food:['음식','요리'],animals:['동물','식물'],places:['명소','건축물'],culture:['문화','전통'],singers:['가수','음악가'],athletes:['운동선수','스포츠'],people:['역사인물','인물'],art:['예술작품','미술작품']}[section]||[];
+}
+function repKind(section,name){
+ if(section!=='animals')return section;
+ const d=COUNTRY_OVERVIEWS?.[COUNTRY]?.animals?.[2]||'';
+ const plant=(d.split('/')[1]||'');
+ return plant.includes(name)?'plant':'animal';
+}
+const TYPE_WORDS={
+ plant:{good:['식물','나무','수목','관목','초본','종','속','과','plant','tree','shrub','species','taxon','flora'],bad:['회화','그림','유화','작품','앨범','노래','영화','오일','기름','향유','painting','artwork','album','song','film','oil']},
+ animal:{good:['동물','조류','포유류','파충류','어류','종','속','과','새','독수리','늑대','스라소니','곰','홍학','animal','bird','mammal','species','taxon'],bad:['회화','그림','작품','영화','노래','painting','artwork','film','song']},
+ food:{good:['음식','요리','빵','수프','디저트','소시지','햄','치즈','dish','food','cuisine','soup','dessert'],bad:['사람','가수','영화','노래','앨범','회화','person','singer','film','song','album','painting']},
+ places:{good:['건축','성당','궁전','공원','미술관','박물관','산','광장','기념물','교량','국립공원','building','cathedral','palace','park','museum','mountain','monument','bridge'],bad:['사람','음식','노래','앨범','person','food','song','album']},
+ culture:{good:['문화','전통','축제','춤','음악','공연','관습','culture','tradition','festival','dance','music'],bad:['사람','식물','동물','person','plant','animal']},
+ singers:{good:['가수','음악가','성악가','기타리스트','singer','musician','vocalist','guitarist'],bad:['노래','앨범','영화','song','album','film']},
+ athletes:{good:['선수','축구','테니스','농구','야구','수영','체조','레이싱','athlete','footballer','tennis','basketball','baseball','swimmer','gymnast','racing'],bad:['팀','클럽','경기장','team','club','stadium']},
+ people:{good:['인물','왕','여왕','작가','과학자','탐험가','정치인','군인','human','king','queen','writer','scientist','explorer','politician'],bad:['영화','책','작품','film','book','artwork']},
+ art:{good:['회화','그림','작품','미술','painting','artwork','sculpture'],bad:['화가','작가','사람','painter','artist','person']}
+};
+function textTypeScore(kind,text){
+ text=(text||'').toLowerCase(); const w=TYPE_WORDS[kind]||TYPE_WORDS[kind==='animals'?'animal':kind]||{good:[],bad:[]};
+ let s=0; for(const x of w.good)if(text.includes(x.toLowerCase()))s+=4;
+ for(const x of w.bad)if(text.includes(x.toLowerCase()))s-=12;
+ return s;
+}
+async function fetchJson(url){const r=await fetch(url);if(!r.ok)throw new Error('HTTP '+r.status);return r.json()}
+async function wdSearch(name,lang){
+ const u='https://www.wikidata.org/w/api.php?action=wbsearchentities&search='+encodeURIComponent(name)+'&language='+lang+'&uselang='+lang+'&type=item&limit=12&format=json&origin=*';
+ return (await fetchJson(u)).search||[];
+}
+async function wdEntity(ids){
+ if(!ids.length)return {};
+ const u='https://www.wikidata.org/w/api.php?action=wbgetentities&ids='+encodeURIComponent(ids.join('|'))+'&props=labels|descriptions|claims|sitelinks&languages=ko|en|es|ja&sitefilter=kowiki|enwiki|eswiki|jawiki&format=json&origin=*';
+ return (await fetchJson(u)).entities||{};
+}
+function claimIds(e,p){return (e?.claims?.[p]||[]).map(x=>x?.mainsnak?.datavalue?.value?.id).filter(Boolean)}
+function claimString(e,p){return (e?.claims?.[p]||[]).map(x=>x?.mainsnak?.datavalue?.value).find(x=>typeof x==='string')||''}
+async function typeLabels(ids){
+ if(!ids.length)return '';
+ const es=await wdEntity([...new Set(ids)].slice(0,40));
+ return Object.values(es).map(e=>[e.labels?.ko?.value,e.labels?.en?.value,e.descriptions?.ko?.value,e.descriptions?.en?.value].filter(Boolean).join(' ')).join(' ');
+}
+async function wikiByTitle(site,title){
+ if(!title)return null;
+ const lang=site.replace('wiki',''), u='https://'+lang+'.wikipedia.org/w/api.php?action=query&prop=extracts|pageimages|pageprops&titles='+encodeURIComponent(title)+'&exintro=1&explaintext=1&piprop=thumbnail|original&pithumbsize=900&format=json&origin=*';
+ try{const j=await fetchJson(u);return Object.values(j.query?.pages||{})[0]||null}catch(e){return null}
+}
+async function commonsImage(file){
+ if(!file)return '';
+ const u='https://commons.wikimedia.org/w/api.php?action=query&titles=File:'+encodeURIComponent(file)+'&prop=imageinfo&iiprop=url&iiurlwidth=900&format=json&origin=*';
+ try{const j=await fetchJson(u),p=Object.values(j.query?.pages||{})[0];return p?.imageinfo?.[0]?.thumburl||p?.imageinfo?.[0]?.url||''}catch(e){return ''}
 }
 async function resolveRepresentativeCard(name,subjectId,section){
- const c=countries[subjectId], words=categorySearchWords(section);
- const queries=[
-   `"${name}" ${c.name} ${words[0]||''}`,
-   `${name} ${c.name} ${words[0]||''}`,
-   `${name} ${c.name}`,
-   name
- ];
- let best=null;
- for(const q of queries){
-  try{
-   const u='https://ko.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch='+encodeURIComponent(q)+'&gsrlimit=8&prop=extracts|pageimages|pageprops&exintro=1&explaintext=1&piprop=thumbnail|original&pithumbsize=800&format=json&origin=*';
-   const r=await fetch(u); if(!r.ok)continue; const j=await r.json();
-   for(const page of Object.values(j.query?.pages||{})){
-    const title=page.title||'', desc=stripHtml(page.extract||'');
-    if(desc.length<45||!isMostlyKorean(desc))continue;
-    const ident=identityScore(name,title); if(!ident)continue;
-    const corpus=title+' '+desc;
-    const countryScore=subjectEvidence(subjectId,corpus);
-    const categoryScore=categoryEvidence(section,corpus);
-    // 대표목록의 이름이라도, 검색 결과가 그 나라/카테고리 범위와 맞는지 다시 확인한다.
-    if(countryScore<1 && categoryScore<1)continue;
-    const photo=page.thumbnail?.source||page.original?.source||''; if(!photo)continue;
-    const score=ident*2+countryScore*6+categoryScore*4;
-    const item={
-      name, title, entityId:page.pageprops?.wikibase_item||('wikipedia:'+page.pageid),
-      pageId:page.pageid, desc:desc.split(/(?<=[.!?。！？])\s+/).slice(0,4).join(' '),
-      photo, score, sources:['Wikipedia']
-    };
-    if(!best||score>best.score)best=item;
-   }
-  }catch(e){}
-  if(best&&best.score>=48)break;
+ const country=countries[subjectId], kind=repKind(section,name), langs=['ko','en'];
+ let hits=[];
+ for(const lang of langs){try{hits.push(...await wdSearch(name,lang))}catch(e){}}
+ const unique=[...new Map(hits.map(x=>[x.id,x])).values()].slice(0,20);
+ if(!unique.length)return null;
+ const entities=await wdEntity(unique.map(x=>x.id));
+ let ranked=[];
+ for(const h of unique){
+   const e=entities[h.id]; if(!e)continue;
+   const basic=[h.label,h.description,e.labels?.ko?.value,e.labels?.en?.value,e.labels?.es?.value,e.labels?.ja?.value,e.descriptions?.ko?.value,e.descriptions?.en?.value].filter(Boolean).join(' ');
+   const typeIds=[...claimIds(e,'P31'),...claimIds(e,'P279')];
+   let types=''; try{types=await typeLabels(typeIds)}catch(err){}
+   const typeText=basic+' '+types;
+   const ts=textTypeScore(kind,typeText);
+   if(ts<0)continue; // 핵심: 이름이 같아도 잘못된 종류면 즉시 제외
+   let ident=Math.max(identityScore(name,h.label||''),identityScore(name,e.labels?.ko?.value||''),identityScore(name,e.labels?.en?.value||''));
+   if(!ident)continue;
+   let relation=subjectEvidence(subjectId,typeText);
+   // 음식/동식물은 국가명이 설명에 없어도 정확한 실체 유형이면 허용.
+   const score=ident*8+ts+Math.max(0,relation)*2;
+   ranked.push({e,h,score,typeText});
  }
- return best;
+ ranked.sort((a,b)=>b.score-a.score);
+ for(const r of ranked.slice(0,8)){
+   const e=r.e;
+   // 동일 Entity의 sitelink에서 설명/사진을 얻는다. 재검색하지 않는다.
+   const links=[
+     ['kowiki',e.sitelinks?.kowiki?.title],
+     subjectId==='ES'?['eswiki',e.sitelinks?.eswiki?.title]:subjectId==='JP'?['jawiki',e.sitelinks?.jawiki?.title]:['enwiki',e.sitelinks?.enwiki?.title],
+     ['enwiki',e.sitelinks?.enwiki?.title]
+   ];
+   let page=null;
+   for(const [site,title] of links){page=await wikiByTitle(site,title);if(page?.extract?.length>45)break}
+   let desc=stripHtml(page?.extract||e.descriptions?.ko?.value||e.descriptions?.en?.value||'');
+   if(desc.length<25)continue;
+   // 설명 자체가 다른 유형을 말하면 다시 거부
+   if(textTypeScore(kind,desc)<-1)continue;
+   let photo=page?.thumbnail?.source||page?.original?.source||'';
+   if(!photo){photo=await commonsImage(claimString(e,'P18'))}
+   if(!photo)continue;
+   return {name,title:e.labels?.ko?.value||page?.title||r.h.label||name,entityId:e.id,pageId:page?.pageid||'',desc:desc.split(/(?<=[.!?。！？])\s+/).slice(0,4).join(' '),photo,score:r.score,sources:['Wikidata','Wikipedia']};
+ }
+ return null;
 }
 const REP_CHECK_CACHE=new Map();
 async function verifyRepresentative(section,name){
- const k=COUNTRY+'|'+section+'|'+normalizeItemName(name);
+ const k='entity-v2|'+COUNTRY+'|'+section+'|'+normalizeItemName(name);
  if(REP_CHECK_CACHE.has(k))return REP_CHECK_CACHE.get(k);
  const promise=resolveRepresentativeCard(name,COUNTRY,section);
  REP_CHECK_CACHE.set(k,promise); return promise;
