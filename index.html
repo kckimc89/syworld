@@ -1688,6 +1688,35 @@ function cardInputKind(section,raw){
 async function cardPipeline(section,rawName){return await sharedResolve(cardInputName(rawName),cardInputKind(section,rawName))}
 async function V8_resolve(section,q){return await cardPipeline(section,q)}
 
+
+// ===== V24 REPRESENTATIVE SELECTION LAYER =====
+// Upstream of V3: educational representative remains primary.
+// Alternatives here mean "already judged comparable as representatives"; card quality only breaks that tie.
+const V24_REP_ALTERNATIVES={
+  JP:{places:{
+    '후시미 이나리 신사':['후시미 이나리 신사','유토쿠 이나리 신사']
+  }}
+};
+const V24_REP_CHOICE_CACHE=new Map();
+async function v24ResolveRepresentative(section,rawName){
+ const name=cardInputName(rawName);
+ const alts=V24_REP_ALTERNATIVES?.[COUNTRY]?.[section]?.[name];
+ if(!alts||alts.length<2)return {display:name,original:name,changed:false};
+ const ck=[COUNTRY,section,name].join('|');
+ if(V24_REP_CHOICE_CACHE.has(ck))return V24_REP_CHOICE_CACHE.get(ck);
+ const promise=(async()=>{
+   const rows=[];
+   for(const n of alts){
+     let q=null;try{q=await v23RepresentativeQuality(n,section)}catch(e){}
+     rows.push(q||{name:n,score:0,cardReady:false,verified:null});
+   }
+   // The listed alternatives are intentionally comparable in representative value.
+   // Prefer complete card; if tied, preserve original order/representative.
+   const best=rows.reduce((a,b)=>b.score>a.score?b:a,rows[0]);
+   return {display:best?.name||name,original:name,changed:(best?.name||name)!==name,quality:best,alternatives:rows};
+ })();
+ V24_REP_CHOICE_CACHE.set(ck,promise);return promise;
+}
 // === REPRESENTATIVE NAME -> CARD PROCESS V5 : availability first ===
 const REP_SECTIONS=['food','fruit','animals','places','culture','singers','athletes','people','art'];
 const repAvailabilityCache=new Map();
@@ -1952,17 +1981,17 @@ function v16PaintStatus(section){
  `확인 완료 · ● 카드 만들기 가능 ${good}개 · ✓ 등록됨 ${reg}개 · ○ 검색도움 ${rows.length-good-reg}개`)+` · 저장 ${si.mb}MB`;
 }
 function v16PaintRow(section,row,panel){
- const existing=getCustom(section), registered=hasIdentity(cardInputName(row.name),existing);
+ const shown=cardInputName(row.resolvedName||row.name), original=cardInputName(row.name);
+ const existing=getCustom(section), registered=hasIdentity(shown,existing);
  let b=panel.querySelector(`[data-rep-key="${CSS.escape(row.key)}"]`);
- if(!b){
-   b=document.createElement('button');b.type='button';b.dataset.repKey=row.key;
-   panel.querySelector('.rep-card-buttons-v5').appendChild(b);
- }
- b.textContent=(registered?'✓ ':row.pending?'… ':row.ok?'● ':'○ ')+cardInputName(row.name);
+ if(!b){b=document.createElement('button');b.type='button';b.dataset.repKey=row.key;panel.querySelector('.rep-card-buttons-v5').appendChild(b);}
+ const changed=shown!==original;
+ b.textContent=(registered?'✓ ':row.pending?'… ':row.ok?'● ':'○ ')+shown+(changed?' ★':'');
  b.className='rep-card-btn-v5 '+(registered?'registered':row.pending?'checking':row.ok?'can-make':'cannot-make');
  b.disabled=registered||row.pending;
- b.title=registered?'이미 카드로 등록되어 있습니다.':row.pending?'처음 한 번만 확인하고 있습니다.':row.ok?'확인된 결과입니다. 눌러서 카드를 만드세요.':'자동확인은 어려웠지만 검색도움으로 비슷한 항목을 찾아 선택할 수 있습니다.';
- b.onclick=()=>{if(registered||row.pending)return;row.ok?openRepresentativePreview(section,cardInputName(row.name),row.verified,panel):manualRepresentative(section,cardInputName(row.name))};
+ b.title=changed?`대표후보 비교: ${original} → ${shown} (대표성이 비슷한 후보 중 설명·사진 완성도를 함께 확인)`:
+   registered?'이미 카드로 등록되어 있습니다.':row.pending?'처음 한 번만 확인하고 있습니다.':row.ok?'확인된 결과입니다. 눌러서 카드를 만드세요.':'자동확인은 어려웠지만 검색도움으로 비슷한 항목을 찾아 선택할 수 있습니다.';
+ b.onclick=()=>{if(registered||row.pending)return;row.ok?openRepresentativePreview(section,shown,row.verified,panel):manualRepresentative(section,shown)};
 }
 function v15CachedRepresentative(section,name){
  const req=v12Request(section,name);
@@ -1981,13 +2010,14 @@ async function v16RunQueue(section){
   for(const row of rows){
    if(st.country!==String(COUNTRY||''))return;
    if(!row.pending)continue;
-   let r=null;
-   try{r=await precheckRepresentative(section,row.name)}catch(e){}
+   let r=null,choice={display:cardInputName(row.name),original:cardInputName(row.name),changed:false};
+   try{choice=await v24ResolveRepresentative(section,row.name)}catch(e){}
+   row.resolvedName=choice.display;row.repChoice=choice;
+   try{r=await precheckRepresentative(section,choice.display)}catch(e){}
    if(!r?.ok){
-    // one retry only; no panel rerender and no recursive queue restart
     await new Promise(res=>setTimeout(res,180));
-    repAvailabilityCache.delete(v12Request(section,row.name).key);
-    try{r=await precheckRepresentative(section,row.name)}catch(e){}
+    repAvailabilityCache.delete(v12Request(section,choice.display).key);
+    try{r=await precheckRepresentative(section,choice.display)}catch(e){}
    }
    row.pending=false;row.ok=!!r?.ok;row.verified=r?.verified||null;
    const panel=document.getElementById(section)?.querySelector('.rep-card-panel-v5');
@@ -2011,7 +2041,8 @@ async function renderRepresentativeCardButtonsV5(section){
  for(const name of names){
   const req=v12Request(section,name);
   if(!st.rows.has(req.key)){
-   const cached=v15CachedRepresentative(section,name);
+   const hasRepAlternatives=!!V24_REP_ALTERNATIVES?.[COUNTRY]?.[section]?.[cardInputName(name)];
+   const cached=hasRepAlternatives?null:v15CachedRepresentative(section,name);
    st.rows.set(req.key,{key:req.key,name,pending:!cached,ok:!!cached,verified:cached?.verified||null});
   }
  }
@@ -2035,6 +2066,7 @@ openCountry=function(code){
 window.__MAGIC_V7_DIAGNOSTIC={
  engine:'tested V3 core',
  lessonV23:'Fushimi/Yutoku: representative quality tie-break + exact selected-page photo binding',
+ representativeV24:'upstream comparable-candidate selection before V3',
  fruitOverview:'native COUNTRY_OVERVIEWS array',
  aliasMode:'canonical + reverse alias group',
  availability:'V3 result with description + photo'
