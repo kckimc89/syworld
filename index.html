@@ -22,6 +22,25 @@ button.improve-desc{background:#e7f4ff;border-color:#87bde8}button.last-confirme
 .rep-card-btn-v4{border:1px solid #d9d3ff;background:#fff;border-radius:999px;padding:9px 13px;font-weight:750;font-size:14px;cursor:pointer}
 .rep-card-btn-v4:active{transform:scale(.98)}
 </style>
+
+<style>
+#repSearchModalV5{position:fixed;inset:0;background:rgba(20,20,35,.48);z-index:99999;display:none;align-items:flex-start;justify-content:center;padding:4vh 12px;overflow:auto}
+#repSearchModalV5.on{display:flex}
+.rep-modal-v5{width:min(760px,100%);background:#fff;border-radius:22px;padding:18px;box-shadow:0 18px 60px rgba(0,0,0,.22)}
+.rep-head-v5{display:flex;justify-content:space-between;gap:12px;align-items:center}
+.rep-head-v5 h3{margin:0;font-size:22px}.rep-close-v5{border:0;background:#eee;border-radius:50%;width:38px;height:38px;font-size:20px}
+.rep-status-v5{margin:12px 0;padding:11px 13px;border-radius:12px;background:#f5f3ff;font-weight:700}
+.rep-desc-v5{line-height:1.72;background:#fafafa;border-radius:14px;padding:13px;margin:10px 0}
+.rep-photos-v5{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px}
+.rep-photo-v5{position:relative;border:3px solid transparent;border-radius:14px;overflow:hidden;background:#f3f3f3;min-height:130px}
+.rep-photo-v5.selected{border-color:#6f4cff}.rep-photo-v5 img{width:100%;height:180px;object-fit:cover;display:block}
+.rep-photo-v5 input{position:absolute;top:8px;left:8px;width:22px;height:22px}
+.rep-actions-v5{display:flex;gap:10px;flex-wrap:wrap;margin-top:15px}
+.rep-actions-v5 button{border:0;border-radius:13px;padding:12px 16px;font-weight:800;font-size:15px}
+.rep-save-v5{background:#6f4cff;color:white}.rep-cancel-v5{background:#eee}.rep-manual-v5{background:#fff3d7}
+.rep-card-btn-v4.done{opacity:.52}.rep-card-btn-v4.done::after{content:' ✓'}
+@media(max-width:560px){.rep-photos-v5{grid-template-columns:1fr 1fr}.rep-photo-v5 img{height:145px}}
+</style>
 </head><body>
 <style>
 #kbBtn{position:fixed;right:14px;bottom:14px;z-index:12020;border:0;border-radius:999px;padding:13px 17px;background:#244b76;color:#fff;font-weight:900;box-shadow:0 4px 14px #0003}
@@ -1330,5 +1349,189 @@ function renderAllRepresentativeCardButtonsV4(){
 const __v4OpenCountryCards=openCountry;
 openCountry=function(code){const r=__v4OpenCountryCards(code);setTimeout(renderAllRepresentativeCardButtonsV4,40);return r;};
 
+
+// === V3 FAST REPRESENTATIVE SEARCH CONNECTOR V5 ===
+let REP_CTX_V5=null, REP_RESULT_V5=null;
+const REP_KIND_WORDS_V5={
+ food:['음식','요리','food','dish','cuisine'],
+ fruit:['과일','열매','fruit','berry','citrus'],
+ animals:['동물','식물','animal','plant','species','tree','flower','bird','mammal','reptile'],
+ places:['명소','건축','장소','building','monument','museum','temple','church','palace','park'],
+ culture:['문화','축제','전통','culture','festival','tradition','music','dance'],
+ singers:['가수','음악가','singer','musician','vocalist'],
+ athletes:['선수','운동선수','athlete','player','footballer','tennis'],
+ people:['인물','사람','작가','정치가','과학자','person','writer','scientist','politician'],
+ art:['작품','회화','예술','painting','artwork','work of art']
+};
+const REP_BAD_IMAGE_V5=/map|locator|diagram|scheme|drawing|painting|coat.of.arms|flag|logo|icon|herbarium|range|distribution|symbol/i;
+function repJsonV5(url,ms=4800){
+ const c=new AbortController(),tm=setTimeout(()=>c.abort(),ms);
+ return fetch(url,{signal:c.signal}).then(r=>{if(!r.ok)throw Error('http');return r.json()}).finally(()=>clearTimeout(tm));
+}
+function normV5(s){return String(s||'').toLowerCase().replace(/[^\p{L}\p{N}]+/gu,' ').trim()}
+function nameScoreV5(q,title){
+ const a=normV5(q),b=normV5(title); if(!a||!b)return 0;
+ if(a===b)return 100;if(b.includes(a)||a.includes(b))return 82;
+ const aa=a.split(' '),bb=new Set(b.split(' ')); return Math.round(70*aa.filter(x=>bb.has(x)).length/aa.length);
+}
+async function wikiSearchV5(lang,q){
+ const u=`https://${lang}.wikipedia.org/w/api.php?origin=*&action=query&format=json&generator=search&gsrsearch=${encodeURIComponent(q)}&gsrlimit=5&prop=extracts|pageimages|pageprops&exintro=1&explaintext=1&piprop=thumbnail|original&pithumbsize=900`;
+ const j=await repJsonV5(u); return Object.values(j.query?.pages||{}).sort((a,b)=>(a.index||99)-(b.index||99));
+}
+function evidenceV5(p,kind){
+ const txt=normV5((p.title||'')+' '+(p.extract||''));
+ return (REP_KIND_WORDS_V5[kind]||[]).some(w=>txt.includes(normV5(w)));
+}
+async function entityDescV5(q,kind){
+ const u=`https://www.wikidata.org/w/api.php?origin=*&action=wbsearchentities&format=json&language=ko&uselang=ko&type=item&limit=5&search=${encodeURIComponent(q)}`;
+ try{
+  const j=await repJsonV5(u), words=REP_KIND_WORDS_V5[kind]||[];
+  return (j.search||[]).find(x=>nameScoreV5(q,x.label||'')>=65 && words.some(w=>normV5((x.description||'')).includes(normV5(w))))||null;
+ }catch(e){return null}
+}
+async function findSubjectV5(q,kind){
+ // Fast V3 principle: exact representative name first; at most Korean then English.
+ let best=null;
+ for(const lang of ['ko','en']){
+  let pages=[];try{pages=await wikiSearchV5(lang,q)}catch(e){continue}
+  for(const p of pages){
+   const ns=nameScoreV5(q,p.title||'');
+   if(ns<65)continue;
+   const typeOK=evidenceV5(p,kind);
+   const score=ns+(typeOK?28:0)+(lang==='ko'?5:0);
+   if(typeOK && (!best||score>best.score))best={...p,lang,score};
+  }
+  if(best&&best.score>=120)break;
+ }
+ if(!best){
+   const wd=await entityDescV5(q,kind);
+   if(wd){
+    // use exact Wikidata label to retry Wikipedia once
+    for(const lang of ['ko','en']){
+     let pages=[];try{pages=await wikiSearchV5(lang,wd.label)}catch(e){continue}
+     for(const p of pages){
+      const ns=nameScoreV5(wd.label,p.title||'');
+      if(ns>=65 && evidenceV5(p,kind)){best={...p,lang,score:ns+25};break}
+     }
+     if(best)break;
+    }
+   }
+ }
+ return best;
+}
+function sentencesV5(s,max=620){
+ s=String(s||'').replace(/\s+/g,' ').trim(); if(!s)return '';
+ const a=s.match(/[^.!?。]+[.!?。]?/g)||[s]; let out='';
+ for(const x of a){if((out+x).length>max)break;out+=x.trim()+' ';if(out.trim().split(/[.!?。]/).filter(Boolean).length>=4)break}
+ return out.trim()||s.slice(0,max);
+}
+async function koreanDescriptionV5(q,page){
+ if(page.lang==='ko' && page.extract)return sentencesV5(page.extract);
+ try{
+  const ko=await wikiSearchV5('ko',q);
+  const p=ko.find(x=>nameScoreV5(q,x.title)>=65 && evidenceV5(x,REP_CTX_V5.section));
+  if(p?.extract)return sentencesV5(p.extract);
+ }catch(e){}
+ const wd=await entityDescV5(q,REP_CTX_V5.section);
+ return wd?.description ? `${q}은(는) ${wd.description}.` : sentencesV5(page.extract||'');
+}
+async function commonsPhotosV5(q){
+ const u=`https://commons.wikimedia.org/w/api.php?origin=*&action=query&format=json&generator=search&gsrnamespace=6&gsrlimit=12&gsrsearch=${encodeURIComponent(q)}&prop=imageinfo&iiprop=url&iiurlwidth=900`;
+ try{
+  const j=await repJsonV5(u),arr=Object.values(j.query?.pages||{});
+  return arr.filter(p=>!REP_BAD_IMAGE_V5.test(p.title||'')).map(p=>p.imageinfo?.[0]?.thumburl||p.imageinfo?.[0]?.url).filter(Boolean);
+ }catch(e){return []}
+}
+async function photosV5(q,p){
+ const a=[];
+ const add=u=>{if(u&&!a.includes(u))a.push(u)};
+ add(p.thumbnail?.source);add(p.original?.source);
+ (await commonsPhotosV5(q)).forEach(add);
+ return a.slice(0,5);
+}
+function openRepSearchV5(section,name){
+ REP_CTX_V5={section,name};REP_RESULT_V5=null;
+ document.getElementById('repSearchModalV5').classList.add('on');
+ document.getElementById('repTitleV5').textContent='「'+name+'」 카드 만들기';
+ document.getElementById('repStatusV5').textContent='대표 이름을 확인하고 설명과 사진을 찾고 있어요…';
+ document.getElementById('repDescV5').style.display='none';
+ document.getElementById('repPhotosV5').innerHTML='';
+ document.getElementById('repSaveV5').style.display='none';
+ document.getElementById('repManualV5').style.display='none';
+ searchRepV5(section,name);
+}
+async function searchRepV5(section,name){
+ try{
+  const p=await findSubjectV5(name,section);
+  if(!p)throw Error('not-confirmed');
+  const desc=await koreanDescriptionV5(name,p);
+  const photos=await photosV5(name,p);
+  if(!desc)throw Error('no-description');
+  REP_RESULT_V5={name,section,description:desc,photos,selected:photos[0]||''};
+  document.getElementById('repStatusV5').textContent=photos.length?'설명과 사진을 찾았습니다. 사용할 사진을 골라주세요.':'설명은 찾았지만 알맞은 사진은 찾지 못했습니다.';
+  const d=document.getElementById('repDescV5');d.textContent=desc;d.style.display='block';
+  const box=document.getElementById('repPhotosV5');
+  box.innerHTML=photos.map((u,i)=>`<label class="rep-photo-v5 ${i===0?'selected':''}"><input type="radio" name="repPhotoV5" ${i===0?'checked':''} value="${i}"><img src="${u}" alt="${name} 사진 후보 ${i+1}"></label>`).join('');
+  box.querySelectorAll('input').forEach(x=>x.onchange=()=>{
+   box.querySelectorAll('.rep-photo-v5').forEach(y=>y.classList.remove('selected'));x.closest('.rep-photo-v5').classList.add('selected');
+   REP_RESULT_V5.selected=photos[+x.value]||'';
+  });
+  document.getElementById('repSaveV5').style.display=photos.length?'inline-block':'none';
+  document.getElementById('repManualV5').style.display=photos.length?'none':'inline-block';
+ }catch(e){
+  document.getElementById('repStatusV5').textContent='자동으로 확실한 대상을 찾지 못했습니다. 대표 이름은 그대로 두고 직접 카드를 만들 수 있습니다.';
+  document.getElementById('repManualV5').style.display='inline-block';
+ }
+}
+function closeRepSearchV5(){document.getElementById('repSearchModalV5').classList.remove('on')}
+function repStoreKeyV5(){return 'magic_rep_cards_v5'}
+function getRepCardsV5(){try{return JSON.parse(localStorage.getItem(repStoreKeyV5())||'[]')}catch(e){return []}}
+function saveRepCardV5(){
+ if(!REP_RESULT_V5||!REP_RESULT_V5.selected)return;
+ const all=getRepCardsV5();
+ const card={country:COUNTRY,section:REP_RESULT_V5.section,name:REP_RESULT_V5.name,description:REP_RESULT_V5.description,photo:REP_RESULT_V5.selected,createdAt:Date.now()};
+ const i=all.findIndex(x=>x.country===card.country&&x.section===card.section&&x.name===card.name);
+ if(i>=0)all[i]=card;else all.push(card);
+ localStorage.setItem(repStoreKeyV5(),JSON.stringify(all));
+ closeRepSearchV5();renderSavedRepCardsV5();renderAllRepresentativeCardButtonsV4();
+}
+function renderSavedRepCardsV5(){
+ REP_SECTIONS.forEach(section=>{
+  const sec=document.getElementById(section);if(!sec)return;
+  let box=sec.querySelector('.saved-rep-cards-v5');if(!box){box=document.createElement('div');box.className='cards saved-rep-cards-v5';sec.appendChild(box)}
+  const cards=getRepCardsV5().filter(x=>x.country===COUNTRY&&x.section===section);
+  box.innerHTML=cards.map(c=>`<article class="card"><img src="${c.photo}" alt="${c.name}" style="width:100%;aspect-ratio:4/3;object-fit:cover"><div style="padding:12px"><h3 style="margin:0 0 8px">${c.name}</h3><p style="line-height:1.6;margin:0">${c.description}</p></div></article>`).join('');
+ });
+ // fade completed representative buttons
+ document.querySelectorAll('.rep-card-panel-v4').forEach(panel=>{
+  const sec=panel.closest('section');if(!sec)return;
+  const done=new Set(getRepCardsV5().filter(x=>x.country===COUNTRY&&x.section===sec.id).map(x=>x.name));
+  panel.querySelectorAll('.rep-card-btn-v4').forEach(b=>b.classList.toggle('done',done.has(b.dataset.name)));
+ });
+}
+function manualRepCardV5(){
+ const {section,name}=REP_CTX_V5||{};closeRepSearchV5();
+ if(typeof openAdd==='function'){try{return openAdd(section,name)}catch(e){}}
+ alert('「'+name+'」은 자동 카드 만들기에 실패했습니다. 대표 이름은 백과사전에 그대로 남습니다.');
+}
+// Replace V4 button action with connected V3 search.
+makeRepCard=function(section,name){openRepSearchV5(section,name)};
+const __v5OpenCountry=openCountry;
+openCountry=function(code){const r=__v5OpenCountry(code);setTimeout(()=>{renderAllRepresentativeCardButtonsV4();renderSavedRepCardsV5()},80);return r;};
+
 </script>
+
+<div id="repSearchModalV5">
+ <div class="rep-modal-v5">
+  <div class="rep-head-v5"><h3 id="repTitleV5">대표 이름으로 카드 만들기</h3><button class="rep-close-v5" onclick="closeRepSearchV5()">×</button></div>
+  <div id="repStatusV5" class="rep-status-v5">검색 준비</div>
+  <div id="repDescV5" class="rep-desc-v5" style="display:none"></div>
+  <div id="repPhotosV5" class="rep-photos-v5"></div>
+  <div class="rep-actions-v5">
+   <button id="repSaveV5" class="rep-save-v5" style="display:none" onclick="saveRepCardV5()">⭐ 이 내용 그대로 카드 만들기</button>
+   <button class="rep-cancel-v5" onclick="closeRepSearchV5()">이번에는 넣지 않기</button>
+   <button id="repManualV5" class="rep-manual-v5" style="display:none" onclick="manualRepCardV5()">🧩 내가 카드 만들기</button>
+  </div>
+ </div>
+</div>
 </body></html>
