@@ -1759,16 +1759,19 @@ function manualRepresentative(section,name){
 // Search cache is NOT included in user backup and can be rebuilt without affecting registered cards.
 // Only newly uploaded user photos are resized; existing photos are never recompressed automatically.
 
+// V17: country-isolated representative state. No item from one country may leak into another.
 // V16: representative panel is persistent. Search state and DOM are decoupled.
 // Adding a card never clears this panel and never restarts completed/in-flight searches.
 const V16_SEARCH_STATE=new Map();
+function v16CountrySectionKey(section){return String(COUNTRY||'')+'::'+section}
 function v16State(section){
- let s=V16_SEARCH_STATE.get(section);
- if(!s){s={rows:new Map(),running:false,finished:false};V16_SEARCH_STATE.set(section,s)}
+ const k=v16CountrySectionKey(section);
+ let s=V16_SEARCH_STATE.get(k);
+ if(!s){s={country:String(COUNTRY||''),rows:new Map(),running:false,finished:false};V16_SEARCH_STATE.set(k,s)}
  return s;
 }
 function v16MarkRegisteredInPlace(section,name){
- const sec=document.getElementById(section),panel=sec?.querySelector('.rep-card-panel-v5');if(!panel)return;
+ const sec=document.getElementById(section),panel=sec?.querySelector('.rep-card-panel-v5');if(!panel||panel.dataset.country!==String(COUNTRY||''))return;
  const key=v12Request(section,name).key;
  const b=panel.querySelector(`[data-rep-key="${CSS.escape(key)}"]`);
  if(b){b.textContent='✓ '+cardInputName(name);b.className='rep-card-btn-v5 registered';b.disabled=true;b.title='이미 카드로 등록되어 있습니다.';}
@@ -1814,6 +1817,7 @@ async function v16RunQueue(section){
  try{
   const rows=[...st.rows.values()];
   for(const row of rows){
+   if(st.country!==String(COUNTRY||''))return;
    if(!row.pending)continue;
    let r=null;
    try{r=await precheckRepresentative(section,row.name)}catch(e){}
@@ -1825,7 +1829,7 @@ async function v16RunQueue(section){
    }
    row.pending=false;row.ok=!!r?.ok;row.verified=r?.verified||null;
    const panel=document.getElementById(section)?.querySelector('.rep-card-panel-v5');
-   if(panel){v16PaintRow(section,row,panel);v16PaintStatus(section)}
+   if(panel && panel.dataset.country===st.country){v16PaintRow(section,row,panel);v16PaintStatus(section)}
    await new Promise(res=>setTimeout(res,60));
   }
   st.finished=true;
@@ -1834,8 +1838,10 @@ async function v16RunQueue(section){
 async function renderRepresentativeCardButtonsV5(section){
  const sec=document.getElementById(section);if(!sec)return;
  let panel=sec.querySelector('.rep-card-panel-v5');
+ // V17: a section DOM is reused between countries, but its representative panel must never be.
+ if(panel && panel.dataset.country!==String(COUNTRY||'')){panel.remove();panel=null}
  if(!panel){
-  panel=document.createElement('div');panel.className='rep-card-panel-v5 note';
+  panel=document.createElement('div');panel.className='rep-card-panel-v5 note';panel.dataset.country=String(COUNTRY||'');
   panel.innerHTML='<div class="rep-title-v5">⭐ 대표 이름으로 카드 만들기</div><div class="rep-status-v5"></div><div class="rep-card-buttons-v5"></div><div class="rep-preview-v5"></div>';
   sec.appendChild(panel);
  }
