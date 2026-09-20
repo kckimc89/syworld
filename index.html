@@ -146,7 +146,7 @@ async function kbCardPipeline(type,name){const raw=type==='plant'?'식물 — '+
 async function kbCheck(type,i,btn){
  const name=KB[type].names[i],pv=document.getElementById('kbPreview');
  pv.innerHTML='<div class="kbBox">🔎 나라 화면과 같은 공통 엔진으로 확인하고 있어요…</div>';
- const best=await kbCardPipeline(type,name);
+ const best=await v12TestResolve(type,name);
  const possible=!!(best&&best.desc);
  btn.classList.remove('ok','help');btn.classList.add(possible?'ok':'help');
  btn.querySelector('small').textContent=possible?'⭐ 카드 만들 수 있어요':'🧩 내가 추가하도록 도와줘';
@@ -1618,20 +1618,29 @@ function parseRepNames(text){
  }
  return out
 }
+
+// ===== V12 ABSOLUTELY ONE REQUEST PATH =====
+function v12Request(section,rawName,forcedKind=''){
+ const display=cardInputName(rawName),kind=forcedKind||cardInputKind(section,rawName);
+ return {section,rawName:String(rawName||''),name:display,kind,key:['V12-ONEPATH',kind,display].join('|')};
+}
+async function v12ResolveRequest(req){
+ try{const c=localStorage.getItem('magic_v12_entity_'+req.key);if(c){const j=JSON.parse(c);if(j&&j.desc)return j}}catch(e){}
+ const result=await sharedResolve(req.name,req.kind);
+ if(result&&result.desc){try{localStorage.setItem('magic_v12_entity_'+req.key,JSON.stringify(result))}catch(e){};return result}
+ return null;
+}
+async function v12CountryResolve(section,rawName){return await v12ResolveRequest(v12Request(section,rawName))}
+async function v12TestResolve(type,name){
+ const section={food:'food',animal:'animals',plant:'animals',art:'art'}[type]||type;
+ return await v12ResolveRequest(v12Request(section,name,type));
+}
 async function precheckRepresentative(section,name){
- const normalized=cardInputName(name),kind=cardInputKind(section,name);
- const key=['V11-QUALITY',kind,normalized].join('|');
- if(repAvailabilityCache.has(key))return repAvailabilityCache.get(key);
- // Persistent cache: one successful search is reused across Safari/app launches.
- try{
-  const saved=JSON.parse(localStorage.getItem('magic_v3_result_'+key)||'null');
-  if(saved&&saved.verified){repAvailabilityCache.set(key,saved);return saved}
- }catch(e){}
- let verified=null;
- try{verified=await cardPipeline(section,name)}catch(e){}
+ const req=v12Request(section,name);
+ if(repAvailabilityCache.has(req.key))return repAvailabilityCache.get(req.key);
+ let verified=null;try{verified=await v12ResolveRequest(req)}catch(e){}
  const result=verified&&verified.desc?{ok:true,verified}:{ok:false,verified:null};
- if(result.ok)try{localStorage.setItem('magic_v3_result_'+key,JSON.stringify(result))}catch(e){}
- repAvailabilityCache.set(key,result);return result;
+ repAvailabilityCache.set(req.key,result);return result;
 }
 function openRepresentativePreview(section,name,verified,panel){
  let pv=panel.querySelector('.rep-preview-v5');
@@ -1661,13 +1670,14 @@ async function renderRepresentativeCardButtonsV5(section){
  let panel=sec.querySelector('.rep-card-panel-v5');
  if(!panel){panel=document.createElement('div');panel.className='rep-card-panel-v5 note';sec.appendChild(panel);}
  const names=parseRepNames(repTextFor(section));
+ for(const [k,v] of repAvailabilityCache.entries()){if(v&&!v.ok)repAvailabilityCache.delete(k)}
  panel.innerHTML='<div class="rep-title-v5">⭐ 대표 이름으로 카드 만들기</div>'+
- '<div class="rep-status-v5">대표 이름을 확인하고 있습니다. 카드로 만들 수 있는 이름부터 앞에 배치합니다.</div>'+
+ '<div class="rep-status-v5">대표 이름을 같은 공통 검색경로로 확인하고 있습니다. 잠시 실패한 항목은 다음에 다시 확인합니다.</div>'+
  '<div class="rep-card-buttons-v5"></div><div class="rep-preview-v5"></div>';
  const holder=panel.querySelector('.rep-card-buttons-v5'), status=panel.querySelector('.rep-status-v5');
  // Lightweight concurrent check, then sort available first while preserving original order within groups.
  const checks=[],jobs=names.map((name,i)=>({name,i}));
- const workers=Array.from({length:Math.min(3,jobs.length)},async()=>{while(jobs.length){const j=jobs.shift();checks.push({name:j.name,i:j.i,...await precheckRepresentative(section,j.name)})}});
+ const workers=Array.from({length:Math.min(2,jobs.length)},async()=>{while(jobs.length){const j=jobs.shift();checks.push({name:j.name,i:j.i,...await precheckRepresentative(section,j.name)})}});
  await Promise.all(workers);
  if(!panel.isConnected)return;
  checks.sort((a,b)=>(b.ok-a.ok)||(a.i-b.i));
