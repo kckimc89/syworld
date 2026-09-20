@@ -81,7 +81,7 @@ button.improve-desc{background:#e7f4ff;border-color:#87bde8}button.last-confirme
  .item .photo-area{height:200px!important;min-height:200px!important}
 }
 </style>
-</head><body>
+<style id="v13-guard">.item img[src=''],.item img:not([src]){display:none!important}</style></head><body>
 <style>
 #kbBtn{position:fixed;right:14px;bottom:14px;z-index:12020;border:0;border-radius:999px;padding:13px 17px;background:#244b76;color:#fff;font-weight:900;box-shadow:0 4px 14px #0003}
 #kbPanel{display:none;position:fixed;inset:0;z-index:12030;background:#f7f4ec;overflow:auto;padding:16px}
@@ -1530,24 +1530,29 @@ async function sharedPage(title){
   const r=await fetch(u),j=await r.json();return Object.values(j.query?.pages||{})[0]||null;
  }catch(e){return null}
 }
-async function sharedResolve(name,type){
+async function sharedResolve(name,type,section=''){
  const hits=await sharedWikiSearch(name,type); let best=null,bestScore=-999;
  const aliases=sharedAliases(name);
  for(const h of hits.slice(0,12)){
   const p=await sharedPage(h.title); if(!p)continue;
   const desc=(p.extract||'').replace(/\s+/g,' ').trim();
-  let s=sharedTypeFit(type,h.title,desc);
+  let s=sharedTypeFit(type,h.title,desc)+v13EntityFit(name,type,h.title,desc)+v14IntentFit(section||type,name,h.title,desc,p.thumbnail?.source||'');
   for(const a of aliases){
-   if(h.title===a)s+=4;
+   if(h.title===a)s+=5;
    else if(h.title.includes(a)||a.includes(h.title))s+=2;
   }
-  if(p.thumbnail?.source)s+=1;if(desc.length>60)s+=1;
+  if(p.thumbnail?.source&&v14PhotoIntentOkay(section||type,name,p.thumbnail.source,p.title))s+=1;
+  if(desc.length>60)s+=1;
   if(s>bestScore){bestScore=s;best={p,desc,score:s}}
  }
- if(!(best&&best.desc.length>45&&bestScore>0))return null;
+ // V13: weak/mismatched pages are unavailable rather than creating a wrong card.
+ if(!(best&&best.desc.length>45&&v13NameFit(name,best.p.title)>=5))return null;
+ const exactish=v13NameFit(name,best.p.title)>=6;
+ if(bestScore<5 && !exactish)return null;
+ const photo=(best.p.thumbnail?.source&&v13PhotoOkay(best.p.thumbnail.source,best.p.title,type))?best.p.thumbnail.source:'';
  return {name,title:best.p.title||name,entityId:best.p.pageprops?.wikibase_item||'',pageId:best.p.pageid||'',
-   desc:v11ChildDescription(best.desc,name,type),photo:best.p.thumbnail?.source||'',photos:best.p.thumbnail?.source?[best.p.thumbnail.source]:[],
-   sources:['공통 카드 검색엔진'],score:bestScore};
+   desc:v13CardDescription(best.desc,name,type),photo,photos:photo?[photo]:[],
+   sources:['공통 카드 검색엔진 · V13 대상확인'],score:bestScore};
 }
 
 
@@ -1619,15 +1624,96 @@ function parseRepNames(text){
  return out
 }
 
+
+
+// ===== V14 REGRESSION-SAFE CATEGORY INTENT =====
+const V14_FRUIT_WORDS=['과일','열매','fruit','fig','orange','grape','peach','apple','pear','lemon'];
+const V14_TREE_WORDS=['나무','수목','tree','목본','관목'];
+function v14IntentFit(section,name,title,desc,photoUrl){
+ const text=(String(title||'')+' '+String(desc||'')).toLowerCase();
+ let s=0;
+ if(section==='fruit'){
+   if(V14_FRUIT_WORDS.some(w=>text.includes(w)))s+=5;
+   if(V14_TREE_WORDS.some(w=>text.includes(w)))s-=3; // tree page may be related, but fruit card prefers fruit itself
+   if(/무화과나무|오렌지나무|포도나무/.test(String(title||'')))s-=6;
+   if(/무화과|오렌지|포도|복숭아|사과|배|레몬/.test(String(title||'')))s+=5;
+ }
+ if(section==='food'){
+   if(V13_FOOD_HINTS.some(w=>text.includes(w)))s+=4;
+   if(V13_SPORT_HINTS.some(w=>text.includes(w)))s-=8;
+ }
+ return s;
+}
+function v14PhotoIntentOkay(section,name,url,title){
+ if(!v13PhotoOkay(url,title,section))return false;
+ const x=(String(url||'')+' '+String(title||'')).toLowerCase();
+ if(section==='fruit' && /tree|나무|orchard|grove/.test(x) && !/fruit|fig|orange|grape|peach|apple|pear|lemon/.test(x))return false;
+ return true;
+}
+// ===== V13 EXACT ENTITY + CHILD CARD GUARD =====
+const V13_BAD_PAGE_WORDS=['목록','리스트','분류','동음이의','요리 목록','음식 목록','국가별','문화'];
+const V13_FOOD_HINTS=['요리','음식','수프','빵','반죽','튀김','소스','채소','고기','생선','새우','쌀','면','감자','토마토','마늘','올리브유','달걀','치즈','디저트','먹','조리','재료'];
+const V13_SPORT_HINTS=['경기','선수','공을','득점','스포츠','구기','팀','경기장','라켓','골대'];
+function v13Norm(x){return String(x||'').toLowerCase().replace(/[《》〈〉「」『』"'’‘·.,()[\]{}:;!?_\-\s]/g,'')}
+function v13NameFit(name,title){
+ const n=v13Norm(name),q=v13Norm(title);
+ if(!n||!q)return 0;
+ if(q===n)return 9;
+ if(q.includes(n)||n.includes(q))return 6;
+ const aliases=(typeof V3_ALIAS!=='undefined'&&V3_ALIAS[name])?V3_ALIAS[name]:[];
+ for(const a of aliases){const z=v13Norm(a);if(z&&(q===z||q.includes(z)||z.includes(q)))return 5}
+ return -8;
+}
+function v13EntityFit(name,kind,title,desc){
+ const text=(String(title||'')+' '+String(desc||'')).toLowerCase();
+ let score=v13NameFit(name,title);
+ if(V13_BAD_PAGE_WORDS.some(w=>String(title||'').includes(w)))score-=10;
+ if(kind==='food'){
+   score+=V13_FOOD_HINTS.filter(w=>text.includes(w)).length*1.4;
+   score-=V13_SPORT_HINTS.filter(w=>text.includes(w)).length*2.4;
+ }
+ if(kind==='plant' && /(선수|경기|도시|영화|음반)/.test(text))score-=8;
+ if(kind==='animal' && /(선수|경기|도시|영화|음반)/.test(text))score-=8;
+ if(kind==='art' && /(목록|음반 목록|노래 목록)/.test(text))score-=8;
+ return score;
+}
+function v13PhotoOkay(url,title,kind){
+ const x=(String(url||'')+' '+String(title||'')).toLowerCase();
+ if(!url)return false;
+ if(/flag|coat.?of.?arms|emblem|map|locator|logo|icon|seal|bandera|escudo/.test(x))return false;
+ return true;
+}
+function v13CardDescription(raw,name,kind){
+ let d=v11ChildDescription(raw,name,kind);
+ // Remove encyclopedia/meta phrasing and excessive location-first openings.
+ d=d.replace(/이 문서는[^.。!?]*[.。!?]?/g,'')
+    .replace(/이 목록은[^.。!?]*[.。!?]?/g,'')
+    .replace(/다음은[^.。!?]*[.。!?]?/g,'')
+    .replace(/\s+/g,' ').trim();
+ const ss=d.split(/(?<=[.!?。！？])\s+/).filter(Boolean);
+ let keep=ss.filter(s=>!/(목록|문서|분류|학명|발음|어원|원어)/.test(s));
+ if(!keep.length)keep=ss;
+ d=keep.slice(0,3).join(' ');
+ if(d.length>320)d=d.slice(0,320).replace(/\s+\S*$/,'')+'…';
+ return d;
+}
+
+const V14_REGRESSION_CASES=[
+ ['food','파에야'],['food','하몬 이베리코'],['food','추로스'],
+ ['fruit','무화과'],['plant','올리브나무'],['plant','코르크참나무']
+];
+function v14RegressionStaticCheck(){
+ return V14_REGRESSION_CASES.map(([kind,name])=>({kind,name,normalized:cardInputName(name)}));
+}
 // ===== V12 ABSOLUTELY ONE REQUEST PATH =====
 function v12Request(section,rawName,forcedKind=''){
  const display=cardInputName(rawName),kind=forcedKind||cardInputKind(section,rawName);
- return {section,rawName:String(rawName||''),name:display,kind,key:['V12-ONEPATH',kind,display].join('|')};
+ return {section,rawName:String(rawName||''),name:display,kind,key:['V14-SAFE',section,kind,display].join('|')};
 }
 async function v12ResolveRequest(req){
- try{const c=localStorage.getItem('magic_v12_entity_'+req.key);if(c){const j=JSON.parse(c);if(j&&j.desc)return j}}catch(e){}
- const result=await sharedResolve(req.name,req.kind);
- if(result&&result.desc){try{localStorage.setItem('magic_v12_entity_'+req.key,JSON.stringify(result))}catch(e){};return result}
+ try{const c=localStorage.getItem('magic_v14_entity_'+req.key);if(c){const j=JSON.parse(c);if(j&&j.desc)return j}}catch(e){}
+ const result=await sharedResolve(req.name,req.kind,req.section);
+ if(result&&result.desc){try{localStorage.setItem('magic_v14_entity_'+req.key,JSON.stringify(result))}catch(e){};return result}
  return null;
 }
 async function v12CountryResolve(section,rawName){return await v12ResolveRequest(v12Request(section,rawName))}
@@ -1647,6 +1733,7 @@ function openRepresentativePreview(section,name,verified,panel){
  if(!pv){pv=document.createElement('div');pv.className='rep-preview-v5';panel.appendChild(pv);}
  // Reuse the verified snapshot; do not search a second time.
  const photoChoices=(verified.photos||[verified.photo]).filter(Boolean).slice(0,5);
+ if(!photoChoices.length){try{console.debug('[V13] no safe photo for',name)}catch(e){}}
  pv.innerHTML=`<div class="preview-card"><h3>${esc(name)}</h3><p>${esc(verified.desc)}</p><div class="v3-photo-choices">${photoChoices.map((u,i)=>`<label><input type="radio" name="v3photo" value="${esc(u)}" ${i===0?'checked':''}><img src="${esc(u)}" alt=""></label>`).join('')}</div><div class="preview-actions"><button class="rep-save-v5">⭐ 선택한 사진으로 카드 만들기</button><button class="rep-close-v5">닫기</button></div></div>`;
  pv.querySelector('.rep-close-v5').onclick=()=>pv.innerHTML='';
  pv.querySelector('.rep-save-v5').onclick=async()=>{
