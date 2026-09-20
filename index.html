@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>카드 검색엔진 시험기 V3 · 빠른 정확검색</title>
+<title>카드 검색엔진 시험기 V4 · 개념 정확검색</title>
 <style>
 :root{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;color:#172033;background:#f5f7fb}
 *{box-sizing:border-box} body{margin:0;padding:18px}.wrap{max-width:900px;margin:auto}
@@ -22,10 +22,10 @@ button{background:#3056d3;color:#fff;border:0;font-weight:800;cursor:pointer}but
 </style>
 </head>
 <body><div class="wrap">
-<h1>🪄 카드 검색엔진 시험기 V3 · 빠른 정확검색</h1>
+<h1>🪄 카드 검색엔진 시험기 V4 · 개념 정확검색</h1>
 <div class="sub">백과사전과 완전히 분리된 시험기입니다. <b>나라 조건은 사용하지 않습니다.</b><br>
-대표 이름을 바꾸지 않고 검색합니다. <b>첫 검색어와 이름이 맞는 대상만</b> 사용하고, 맞지 않으면 억지로 다른 항목을 고르지 않습니다.<br>
-검색은 빠르게 끝내고, 설명과 사진은 확정된 이름으로만 찾습니다.</div>
+대표 이름이 가리키는 <b>같은 개념</b>을 찾습니다. 다른 이름·학명은 허용하지만, 더 넓은 상위개념으로 바꾸지는 않습니다.<br>
+특정 항목별 예외 없이 같은 규칙으로 음식·동물·식물·장소·인물·예술작품을 처리합니다.</div>
 <div class="panel">
  <div class="row">
   <input id="q" placeholder="예: 하몽 이베리코" autocomplete="off">
@@ -51,20 +51,8 @@ const esc=s=>String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&
 async function J(u){let c=new AbortController(),tm=setTimeout(()=>c.abort(),4500);try{let r=await fetch(u,{signal:c.signal});if(!r.ok)throw Error(r.status);return await r.json()}finally{clearTimeout(tm)}}
 
 const KIND_KO={food:'음식',animal:'동물',plant:'식물',place:'장소',culture:'문화',person:'인물',art:'예술작품'};
-const ALIAS={
- '하몽 이베리코':['하몬 이베리코','jamón ibérico','jamon iberico'],
- '스페인아이벡스':['스페인 아이벡스','Spanish ibex'],
- '스페인제국수리':['스페인 제국수리','Spanish imperial eagle'],
- '올리브나무':['올리브 나무','olive tree','Olea europaea'],
- '코르크참나무':['코르크 참나무','cork oak','Quercus suber'],
- '오렌지나무':['오렌지 나무','orange tree','Citrus sinensis'],
- '포도나무':['포도 나무','grapevine','Vitis vinifera'],
- '라벤더':['lavender','Lavandula'],
- '크로케타':['크로켓','croqueta','croquette'],
- '추로스':['추로','churros','churro'],
- '파에야':['paella']
-};
-function aliases(q){return [...new Set([q,...(ALIAS[q]||[])])]}
+const KIND_EN={food:'food',animal:'animal',plant:'plant',place:'place',culture:'culture',person:'person',art:'artwork'};
+function aliases(q){return [q]}
 const WORDS={
  food:{yes:['음식','요리','식품','햄','빵','수프','튀김','dish','food','cuisine','ham','bread','soup','croquette'],no:['스포츠','운동','선수','기술','sport','athlete','gymnastics','move']},
  animal:{yes:['동물','새','조류','포유류','독수리','수리','늑대','곰','스라소니','아이벡스','animal','bird','mammal','eagle','wolf','bear','lynx','ibex','taxon','species'],no:['제국','왕국','국가','empire','kingdom','state']},
@@ -91,34 +79,58 @@ async function typeText(e){
  let ids=[...claim(e,'P31'),...claim(e,'P279')].map(x=>x?.id).filter(Boolean).slice(0,20),es=await wd(ids);
  return Object.values(es).map(x=>[x.labels?.ko?.value,x.labels?.en?.value,x.descriptions?.ko?.value,x.descriptions?.en?.value].filter(Boolean).join(' ')).join(' ');
 }
+async function wdSearch(q,lang){
+ let u='https://www.wikidata.org/w/api.php?action=wbsearchentities&search='+encodeURIComponent(q)+'&language='+lang+'&uselang=ko&type=item&limit=12&format=json&origin=*';
+ try{return (await J(u)).search||[]}catch(e){return[]}
+}
+function allNames(e){
+ let a=[e.labels?.ko?.value,e.labels?.en?.value];
+ for(let lang of ['ko','en']) for(let x of (e.aliases?.[lang]||[])) a.push(x.value);
+ return a.filter(Boolean);
+}
+async function batchTypeText(entities){
+ let tids=[];
+ for(let e of entities) tids.push(...claim(e,'P31'),...claim(e,'P279'));
+ tids=tids.map(x=>x?.id).filter(Boolean);
+ let types=await wd([...new Set(tids)].slice(0,50));
+ let map={};
+ for(let e of entities){
+   let ids=[...claim(e,'P31'),...claim(e,'P279')].map(x=>x?.id).filter(Boolean);
+   map[e.id]=ids.map(id=>{
+     let x=types[id]; return x?[x.labels?.ko?.value,x.labels?.en?.value,x.descriptions?.ko?.value,x.descriptions?.en?.value].filter(Boolean).join(' '):''
+   }).join(' ');
+ }
+ return map;
+}
 async function findSubject(q,k){
- let names=aliases(q), candidates=[];
- // Fast path: at most two Wikipedia searches total.
- for(let lang of ['ko','en']){
-   let searchName=lang==='ko'?names[0]:(names.find(x=>/[A-Za-z]/.test(x))||names[0]);
-   let pages=await wikiSearch(lang,searchName+' '+(lang==='ko'?KIND_KO[k]:({food:'food',animal:'animal',plant:'plant',place:'place',culture:'culture',person:'person',art:'artwork'}[k])));
-   for(let i=0;i<Math.min(pages.length,8);i++){
-     let p=pages[i];
-     let n=Math.max(...names.map(x=>nameScore(x,p.title)));
-     // Exact/near name match is mandatory. Never drift to another named object.
-     if(n<65)continue;
-     let ev=evidence(k,(p.title||'')+' '+(p.extract||''));
-     if(ev.no)continue;
-     candidates.push({p,lang,score:n+ev.yes*12+(8-i)});
-   }
- }
- candidates.sort((a,b)=>b.score-a.score);
- for(let c of candidates.slice(0,3)){
-   let qid=c.p.pageprops?.wikibase_item;
-   if(!qid)continue;
-   let e=(await wd([qid]))[qid];
-   if(!e)continue;
-   // One cheap entity description check; no recursive P31/P279 traversal.
-   let ev=evidence(k,[e.descriptions?.ko?.value,e.descriptions?.en?.value,c.p.extract].filter(Boolean).join(' '));
+ // 1) The representative name itself is the only discovery query.
+ let hits=[...(await wdSearch(q,'ko')),...(await wdSearch(q,'en'))];
+ let ids=[...new Set(hits.map(x=>x.id).filter(Boolean))].slice(0,18);
+ if(!ids.length)return null;
+ let es=await wd(ids), entities=ids.map(id=>es[id]).filter(Boolean);
+ let tm=await batchTypeText(entities);
+ let ranked=[];
+ for(let e of entities){
+   // 2) Same concept requires the query to match an official label or alias.
+   let ns=Math.max(0,...allNames(e).map(n=>nameScore(q,n)));
+   let hit=hits.find(h=>h.id===e.id);
+   let hs=Math.max(nameScore(q,hit?.label),nameScore(q,hit?.match?.text));
+   let identity=Math.max(ns,hs);
+   if(identity<65)continue;
+   // 3) Kind is a gate, not a discovery expansion.
+   let blob=[tm[e.id],e.descriptions?.ko?.value,e.descriptions?.en?.value].filter(Boolean).join(' ');
+   let ev=evidence(k,blob);
    if(ev.no)continue;
-   return {e,p:c.p,lang:c.lang};
+   if(ev.yes<1)continue;
+   // Exact concept label/alias is strongly preferred.
+   ranked.push({e,score:identity+ev.yes*18+(identity>=100?30:0)});
  }
- return null;
+ ranked.sort((x,y)=>y.score-x.score);
+ if(!ranked.length)return null;
+ let e=ranked[0].e;
+ // 4) Use only Wikipedia pages attached to the chosen entity. No broad Wikipedia re-search.
+ let title=e.sitelinks?.kowiki?.title||e.sitelinks?.enwiki?.title||'';
+ return {e,p:{title,pageprops:{wikibase_item:e.id}},lang:e.sitelinks?.kowiki?'ko':'en'};
 }
 async function page(lang,title){
  if(!title)return null;
@@ -151,30 +163,27 @@ async function fileUrl(name){
 }
 async function photos(q,k,e,ko,en){
  let a=[];
+ // Wikipedia lead images attached to the exact chosen entity.
  for(let u of [ko?.thumbnail?.source,ko?.original?.source,en?.thumbnail?.source,en?.original?.source].filter(Boolean))
    if(!badPhoto(u,k))a.push(u);
- let p18=claim(e,'P18')[0];
- if(p18){let u=await fileUrl(p18);if(u&&!badPhoto(u,k))a.push(u)}
- let enName=e.labels?.en?.value||aliases(q).find(x=>/[A-Za-z]/.test(x))||q;
- a.push(...await commons(enName,k));
+ // Wikidata representative image of the exact entity.
+ let p18s=claim(e,'P18').slice(0,3);
+ for(let f of p18s){let u=await fileUrl(f);if(u&&!badPhoto(u,k))a.push(u)}
+ // Commons depicts-this-entity search: remains tied to the selected QID.
+ if(e.id)a.push(...await commons('haswbstatement:P180='+e.id,k));
  return [...new Set(a)].slice(0,5);
 }
 async function go(){
  let q=$('#q').value.trim(),k=$('#kind').value;if(!q)return;
- $('#out').innerHTML='<div class="panel status">🔎 이름을 그대로 확인하고 있습니다…</div>';
+ $('#out').innerHTML='<div class="panel status">🔎 「'+esc(q)+'」이 가리키는 개념을 확인하고 있습니다…</div>';
  try{
   let s=await findSubject(q,k);
-  if(!s){$('#out').innerHTML='<div class="panel warn"><b>자동 확정하지 않았습니다.</b><br>같은 이름이면서 선택한 종류에 맞는 대상을 빠르게 확인하지 못했습니다. 다른 항목으로 바꾸지 않고 멈췄습니다.</div>';return}
+  if(!s){$('#out').innerHTML='<div class="panel warn"><b>자동 확정하지 않았습니다.</b><br>이 이름과 같은 개념이면서 선택한 종류에 맞는 대상을 확인하지 못했습니다. 더 넓은 상위개념이나 비슷한 다른 항목으로 바꾸지 않고 멈췄습니다.</div>';return}
   let e=s.e,ko=await page('ko',e.sitelinks?.kowiki?.title),en=await page('en',e.sitelinks?.enwiki?.title);
-  if(!ko&&s.lang==='ko')ko=s.p;if(!en&&s.lang==='en')en=s.p;
-  let chosen=e.labels?.ko?.value||e.labels?.en?.value||s.p.title||'';
-  // Final anti-drift gate.
-  if(Math.max(...aliases(q).map(x=>nameScore(x,chosen)),...aliases(q).map(x=>nameScore(x,s.p.title)))<65){
-    $('#out').innerHTML='<div class="panel warn"><b>자동 확정하지 않았습니다.</b><br>검색 결과의 이름이 원래 대표 이름과 달라서 멈췄습니다.</div>';return
-  }
+  let chosen=e.labels?.ko?.value||e.labels?.en?.value||q;
   let d=description(q,e,ko,en),ps=await photos(q,k,e,ko,en);
-  let im=ps.length?'<div class="photos">'+ps.map((u,i)=>`<div class="photo"><span>${i+1}</span><img src="${esc(u)}"></div>`).join('')+'</div>':'<div class="warn">사진 후보를 찾지 못했습니다.</div>';
-  $('#out').innerHTML=`<div class="result"><div class="title">${esc(q)}</div><div class="meta">확정 대상: ${esc(chosen)} · ${esc(e.id)}</div><div class="desc">${esc(d)}</div>${im}</div>`;
+  let im=ps.length?'<div class="photos">'+ps.map((u,i)=>`<div class="photo"><span>${i+1}</span><img src="${esc(u)}"></div>`).join('')+'</div>':'<div class="warn">이 개념에 직접 연결된 사진 후보를 찾지 못했습니다.</div>';
+  $('#out').innerHTML=`<div class="result"><div class="title">${esc(q)}</div><div class="meta">확정 개념: ${esc(chosen)} · ${esc(e.id)}</div><div class="desc">${esc(d)}</div>${im}</div>`;
  }catch(e){$('#out').innerHTML='<div class="panel warn">검색이 오래 걸리거나 연결이 원활하지 않아 중단했습니다. 다시 시도해 주세요.</div>'}
 }
 function ex(q,k){$('#q').value=q;$('#kind').value=k;go()}
