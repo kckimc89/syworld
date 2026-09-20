@@ -1107,57 +1107,43 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 </script>
 
 
+
+
 <style>
-.categoryEncyclopediaOverview{margin:14px 0;padding:16px 17px;background:#fffaf0;border:1px solid #ead9ad;border-radius:18px;line-height:1.65}
-.categoryEncyclopediaOverview h3{margin:0 0 8px;font-size:20px}
-.categoryEncyclopediaOverview .rep{margin-top:12px;padding-top:10px;border-top:1px dashed #dfc98d}
-.categoryEncyclopediaOverview .rep b{display:block;margin-bottom:4px}
+.sectionOverview{margin:12px 0 16px;padding:16px 17px;background:#fffaf0;border:1px solid #ead9ad;border-radius:18px;line-height:1.65}
+.sectionOverview h3{margin:0 0 8px;font-size:19px}.sectionOverview .rep{margin-top:12px;padding-top:10px;border-top:1px dashed #dfc98d}
 </style>
 <script>
 (function(){
- const DATA={
-  food:{match:/음식과 식생활을 알아보아요/,title:'🍽️ 음식과 식생활',
-   text:'스페인은 지역마다 기후와 생산물이 달라 음식문화도 매우 다양합니다. 지중해 연안에서는 올리브유, 채소, 쌀, 생선과 해산물을 많이 이용하고, 내륙에서는 육류와 콩을 활용한 음식도 발달했습니다. 발렌시아의 파에야, 안달루시아의 가스파초, 갈리시아의 문어요리처럼 지역을 대표하는 음식이 많습니다. 감자와 달걀로 만드는 토르티야 에스파뇰라와 하몬도 널리 알려져 있으며, 여러 음식을 조금씩 나누어 먹는 타파스 문화도 스페인의 식생활을 이해하는 중요한 특징입니다.',
-   rep:'파에야 · 하몬 이베리코 · 토르티야 에스파뇰라 · 가스파초 · 추로스 · 파타타스 브라바스 · 감바스 알 아히요 · 풀포 아 라 가예가 · 크로케타 · 판 콘 토마테 · 코시도 마드릴레뇨 · 파바다 아스투리아나 · 살모레호 · 피스토'},
-  nature:{match:/동식물|동물과 식물|자연에서 만날 수 있는/,title:'🐾🌿 동물과 식물',
-   text:'스페인은 지중해와 대서양에 접하고 산악지대와 건조한 지역, 습지와 해안이 함께 있어 다양한 동식물이 살아갑니다. 이베리아반도에 특징적인 이베리아스라소니와 이베리아늑대, 산악지대의 스페인아이벡스 같은 동물이 잘 알려져 있습니다. 식물로는 올리브나무, 코르크참나무와 홀름참나무 같은 지중해성 수목이 대표적이며, 오렌지나무와 포도나무도 스페인의 농업과 풍경에서 친숙합니다.',
-   rep:'동물 — 이베리아스라소니 · 이베리아늑대 · 스페인아이벡스 · 불곰 · 큰홍학 · 수염독수리 · 스페인제국수리 / 식물 — 올리브나무 · 코르크참나무 · 홀름참나무 · 오렌지나무 · 포도나무 · 라벤더 · 로즈메리'},
-  place:{match:/명소|가볼 만한 곳|만날 수 있는 장소/,title:'🏛️ 대표 명소',
-   text:'스페인은 로마 시대의 유적부터 이슬람 문화의 흔적, 중세 도시, 왕궁과 성당, 근현대 건축까지 여러 시대의 역사를 한 나라에서 만날 수 있습니다. 마드리드와 바르셀로나뿐 아니라 안달루시아와 여러 지방도 서로 다른 문화와 풍경을 보여 줍니다. 그래서 스페인의 명소를 살펴보면 자연스럽게 스페인의 역사와 지역문화를 함께 이해할 수 있습니다.',
-   rep:'사그라다 파밀리아 · 알람브라 궁전 · 구엘 공원 · 프라도 미술관 · 마드리드 왕궁 · 세비야 대성당 · 코르도바 메스키타 · 산티아고 데 콤포스텔라 대성당'},
-  culture:{match:/문화와 생활|문화.*알아보아요|전통과 문화/,title:'💃 문화와 생활',
-   text:'스페인의 문화는 지역마다 서로 다른 언어와 전통, 음악, 춤, 축제와 생활방식을 가지고 있습니다. 플라멩코는 특히 안달루시아와 깊은 관련이 있으며, 기타와 노래, 춤이 어우러지는 예술로 널리 알려져 있습니다. 여러 도시와 마을에서는 지역의 역사와 종교, 계절과 연결된 축제가 열리며, 늦은 시간까지 이어지는 식사와 광장 중심의 생활문화도 스페인의 일상을 이해하는 데 도움이 됩니다.',
-   rep:'플라멩코 · 스페인 기타 · 타파스 문화 · 산 페르민 축제 · 라 토마티나 · 세마나 산타 · 세비야의 봄 축제'},
-  singer:{match:/가수|음악가.*알아보아요|노래하는 사람/,title:'🎤 가수와 음악인',
-   text:'스페인의 대중음악은 전통적인 플라멩코에서 팝, 록, 라틴 음악, 오페라와 클래식 성악까지 폭이 넓습니다. 스페인 출신 음악인들은 스페인어권 문화와 국제 음악계에서 활동해 왔으며, 시대와 장르에 따라 매우 다양한 음악을 들려줍니다. 인물을 살펴볼 때에는 어떤 장르에서 활동했고 어떤 음악으로 알려졌는지를 함께 알아보면 좋습니다.',
-   rep:'훌리오 이글레시아스 · 엔리케 이글레시아스 · 로살리아 · 알레한드로 산스 · 파코 데 루시아 · 플라시도 도밍고 · 몬세라트 카바예'},
-  athlete:{match:/운동선수|스포츠 선수/,title:'⚽ 대표 운동선수',
-   text:'스페인은 축구뿐 아니라 테니스, 농구, 사이클, 모터스포츠 등 여러 종목에서 세계적으로 알려진 선수들을 배출했습니다. 특히 축구는 생활문화와 밀접하고, 테니스와 농구에서도 국제대회에서 활약한 선수들이 많습니다. 선수의 이름과 함께 종목을 살펴보면 스페인에서 어떤 스포츠가 사랑받는지도 자연스럽게 알 수 있습니다.',
-   rep:'라파엘 나달 — 테니스 · 카를로스 알카라스 — 테니스 · 안드레스 이니에스타 — 축구 · 사비 에르난데스 — 축구 · 이케르 카시야스 — 축구 · 파우 가솔 — 농구 · 페르난도 알론소 — 자동차 경주'},
-  people:{match:/역사.*인물|역사인물|인물.*역사/,title:'👑 역사 속 인물',
-   text:'스페인의 역사는 고대와 중세의 여러 왕국, 이슬람 세력과 기독교 왕국의 공존과 경쟁, 대항해 시대, 근현대의 변화가 이어진 긴 과정입니다. 역사 인물을 살펴보면 왕과 탐험가, 작가와 사상가 등 서로 다른 사람들이 스페인의 역사와 문화에 어떤 영향을 주었는지 이해하는 데 도움이 됩니다.',
-   rep:'이사벨 1세 · 페르난도 2세 · 카를로스 1세 · 펠리페 2세 · 미겔 데 세르반테스 · 후안 세바스티안 엘카노 · 산티아고 라몬 이 카할'},
-  art:{match:/예술작품|예술 작품|미술 작품/,title:'🎨 대표 예술작품',
-   text:'스페인은 엘 그레코, 벨라스케스, 고야, 피카소, 달리 등 여러 시대의 중요한 예술가와 연결되어 있습니다. 작품을 살펴보면 왕실과 종교를 다룬 고전 회화에서 전쟁의 비극을 표현한 작품, 20세기의 새로운 미술까지 스페인 미술의 변화를 볼 수 있습니다. 여기서는 예술가의 이름이 아니라 작품 자체를 중심으로 알아봅니다.',
-   rep:'《시녀들》 · 《1808년 5월 3일》 · 《게르니카》 · 《기억의 지속》 · 《쾌락의 정원》 · 《옷을 입은 마하》 · 《옷을 벗은 마하》 · 《아비뇽의 처녀들》'}
- };
- function esc(s){return String(s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]))}
- function add(){
-   const leaves=[...document.querySelectorAll('body *')].filter(e=>e.children.length===0);
-   for(const [key,d] of Object.entries(DATA)){
-     const id='categoryOverview_'+key;
-     if(document.getElementById(id))continue;
-     const el=leaves.find(e=>d.match.test((e.textContent||'').replace(/\s+/g,' ')));
-     if(!el)continue;
-     const host=el.parentElement;if(!host)continue;
-     const box=document.createElement('div');box.id=id;box.className='categoryEncyclopediaOverview';
-     box.innerHTML='<h3>'+d.title+'</h3><div>'+esc(d.text)+'</div><div class="rep"><b>대표적으로 알아둘 이름</b>'+esc(d.rep)+'</div>';
-     host.insertBefore(box,el.nextSibling);
-   }
+const O={
+ '6. 음식':{id:'food',title:'🍽️ 음식과 식생활',text:'스페인은 지역마다 기후와 생산물이 달라 음식문화도 매우 다양합니다. 지중해 연안에서는 올리브유, 채소, 쌀, 생선과 해산물을 많이 이용하고, 내륙에서는 육류와 콩을 활용한 음식도 발달했습니다. 발렌시아의 파에야, 안달루시아의 가스파초, 갈리시아의 문어요리처럼 지역을 대표하는 음식이 많습니다. 감자와 달걀로 만드는 토르티야 에스파뇰라와 하몬도 널리 알려져 있으며, 여러 음식을 조금씩 나누어 먹는 타파스 문화도 중요한 특징입니다.',rep:'파에야 · 하몬 이베리코 · 토르티야 에스파뇰라 · 가스파초 · 추로스 · 파타타스 브라바스 · 감바스 알 아히요 · 풀포 아 라 가예가 · 크로케타 · 판 콘 토마테'},
+ '7. 동식물':{id:'nature',title:'🐾🌿 동물과 식물',text:'스페인은 지중해와 대서양, 산악지대와 건조지역, 습지와 해안이 함께 있어 다양한 동식물이 살아갑니다. 이베리아반도에 특징적인 야생동물과 지중해성 기후에 잘 적응한 식물들을 함께 볼 수 있습니다.',rep:'동물 — 이베리아스라소니 · 이베리아늑대 · 스페인아이벡스 · 불곰 · 큰홍학 / 식물 — 올리브나무 · 코르크참나무 · 홀름참나무 · 오렌지나무 · 포도나무 · 라벤더'},
+ '8. 명소':{id:'place',title:'🏛️ 대표 명소',text:'스페인에서는 로마 시대의 유적, 이슬람 문화의 흔적, 중세 도시, 왕궁과 성당, 근현대 건축까지 여러 시대의 역사를 만날 수 있습니다. 지역마다 서로 다른 건축과 문화유산이 있어 명소를 살펴보는 것만으로도 스페인의 역사와 지역문화를 이해하는 데 도움이 됩니다.',rep:'사그라다 파밀리아 · 알람브라 궁전 · 구엘 공원 · 프라도 미술관 · 마드리드 왕궁 · 세비야 대성당 · 코르도바 메스키타'},
+ '9. 문화':{id:'culture',title:'💃 문화와 생활',text:'스페인은 지역마다 서로 다른 언어와 전통, 음악, 춤, 축제와 생활방식을 가지고 있습니다. 플라멩코는 특히 안달루시아와 깊은 관련이 있으며, 여러 도시와 마을의 축제와 광장 중심의 생활문화도 스페인의 일상을 이해하는 데 도움이 됩니다.',rep:'플라멩코 · 스페인 기타 · 타파스 문화 · 산 페르민 축제 · 라 토마티나 · 세마나 산타 · 세비야의 봄 축제'},
+ '10. 가수':{id:'singer',title:'🎤 가수와 음악인',text:'스페인의 음악은 전통적인 플라멩코에서 팝, 록, 라틴 음악, 오페라와 클래식 성악까지 폭이 넓습니다. 여러 시대와 장르의 음악인을 살펴보면 스페인 음악문화의 다양성을 알 수 있습니다.',rep:'훌리오 이글레시아스 · 엔리케 이글레시아스 · 로살리아 · 알레한드로 산스 · 파코 데 루시아 · 플라시도 도밍고 · 몬세라트 카바예'},
+ '11. 운동선수':{id:'athlete',title:'⚽ 대표 운동선수',text:'스페인은 축구뿐 아니라 테니스, 농구, 사이클, 모터스포츠 등 여러 종목에서 세계적으로 알려진 선수들을 배출했습니다. 선수와 종목을 함께 살펴보면 스페인에서 어떤 스포츠가 사랑받는지도 알 수 있습니다.',rep:'라파엘 나달 · 카를로스 알카라스 · 안드레스 이니에스타 · 사비 에르난데스 · 이케르 카시야스 · 파우 가솔 · 페르난도 알론소'},
+ '12. 역사인물':{id:'people',title:'👑 역사 속 인물',text:'스페인의 역사는 여러 왕국과 문화의 교류, 대항해 시대와 제국의 성장, 근현대의 변화가 이어진 긴 과정입니다. 역사 인물을 통해 각 시대의 정치와 문화, 과학과 문학이 어떻게 변화했는지 살펴볼 수 있습니다.',rep:'이사벨 1세 · 페르난도 2세 · 카를로스 1세 · 펠리페 2세 · 미겔 데 세르반테스 · 후안 세바스티안 엘카노 · 산티아고 라몬 이 카할'},
+ '13. 예술작품':{id:'art',title:'🎨 대표 예술작품',text:'스페인은 엘 그레코, 벨라스케스, 고야, 피카소, 달리 등 여러 시대의 중요한 예술가와 연결되어 있습니다. 작품을 중심으로 살펴보면 고전 회화에서 근현대 미술까지 스페인 예술의 변화를 이해할 수 있습니다.',rep:'《시녀들》 · 《1808년 5월 3일》 · 《게르니카》 · 《기억의 지속》 · 《쾌락의 정원》 · 《옷을 입은 마하》 · 《아비뇽의 처녀들》'}
+};
+function add(){
+ const els=[...document.querySelectorAll('body *')];
+ for(const [heading,d] of Object.entries(O)){
+   if(document.getElementById('secOverview_'+d.id)) continue;
+   // Exact numbered heading only, avoiding navigation buttons whose text contains only category name.
+   const h=els.find(e=>e.children.length===0 && (e.textContent||'').trim()===heading);
+   if(!h) continue;
+   // Find the section container and place after heading + existing short intro, before cards.
+   const host=h.parentElement;if(!host)continue;
+   const box=document.createElement('div');box.id='secOverview_'+d.id;box.className='sectionOverview';
+   box.innerHTML='<h3>'+d.title+'</h3><div>'+d.text+'</div><div class="rep"><b>대표적으로 알아둘 이름</b><br>'+d.rep+'</div>';
+   let ref=h.nextElementSibling;
+   // Keep one short introductory sentence immediately under the heading, like natural/climate section.
+   if(ref && ref.children.length===0 && (ref.textContent||'').trim().length<120) ref=ref.nextElementSibling;
+   host.insertBefore(box,ref||null);
  }
- new MutationObserver(()=>setTimeout(add,0)).observe(document.body,{childList:true,subtree:true});
- document.addEventListener('click',()=>setTimeout(add,60));
- setTimeout(add,500);
+}
+new MutationObserver(()=>setTimeout(add,0)).observe(document.body,{childList:true,subtree:true});
+document.addEventListener('click',()=>setTimeout(add,60));setTimeout(add,500);
 })();
 </script>
 </body></html>
