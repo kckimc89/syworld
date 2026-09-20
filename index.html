@@ -972,7 +972,7 @@ const CANDIDATE_CHECK_CACHE=new Map();
 const CANDIDATE_TARGET=8;
 async function verifyCandidateTarget(section,target){
  const name=typeof target==='string'?target:target.name, source=typeof target==='string'?'discover':(target.source||'discover');
- const k='simple-v4|'+COUNTRY+'|'+section+'|'+normalizeItemName(name);
+ const k='name-type-v5|'+section+'|'+normalizeItemName(name);
  if(CANDIDATE_CHECK_CACHE.has(k))return CANDIDATE_CHECK_CACHE.get(k);
  const promise=(async()=>{
    const e=await resolveWikipediaEntity(name,COUNTRY,section,source);if(!e)return null;
@@ -1096,7 +1096,8 @@ async function entityViaWikiSearch(name,kind){
    const j=await fetchJson(u),pages=Object.values(j.query?.pages||{});
    for(const pg of pages){
     if(!identityScore(name,pg.title||''))continue;
-    if(simpleTypeScore(kind,(pg.title||'')+' '+(pg.extract||''))<-2)continue;
+    // fallback에서도 종류 증거가 실제로 있어야 한다. 이름만 같다고 통과시키지 않는다.
+    if(simpleTypeScore(kind,(pg.title||'')+' '+(pg.extract||''))<=0)continue;
     const q=pg.pageprops?.wikibase_item;if(q){const es=await wdEntities([q]);if(es[q])return es[q]}
    }
   }catch(e){}
@@ -1115,8 +1116,10 @@ async function chooseEntity(name,kind){
   if(!ident)continue;
   const tt=await typeText(e), corpus=labels.join(' ')+' '+(e.descriptions?.ko?.value||'')+' '+(e.descriptions?.en?.value||'')+' '+tt;
   const ts=simpleTypeScore(kind,corpus);
-  if(ts<0)continue;
-  ranked.push({e,score:ident*10+ts});
+  // V5: 나라와의 관련성은 이미 대표 이름 선정 단계에서 끝났다.
+  // 카드 엔진은 오직 '이름이 맞는가 + 종류가 맞는가'만 확인한다.
+  if(ts<=0)continue;
+  ranked.push({e,score:ident*20+ts});
  }
  ranked.sort((a,b)=>b.score-a.score);
  if(ranked[0])return ranked[0].e;
@@ -1156,18 +1159,29 @@ async function commonsNamePhoto(label,kind){
  }catch(e){}
  return '';
 }
+function cleanLeadSentence(s){
+ s=(s||'').replace(/\([^)]{1,120}\)/g,' ').replace(/\[[^\]]+\]/g,' ').replace(/\s+/g,' ').trim();
+ return s;
+}
 function koreanDesc(name,section,e,koPage,enPage){
  const ko=stripHtml(koPage?.extract||'');
- if(ko.length>=35)return ko.split(/(?<=[.!?。！？])\s+/).slice(0,4).join(' ');
- const kd=e.descriptions?.ko?.value||'';
- if(kd)return `${name}은(는) ${kd}입니다.`;
- // 외국어 원문을 화면에 그대로 내보내지 않는다.
- const ed=e.descriptions?.en?.value||'';
- const kind=SECTION_LABEL[section]||'항목';
- return ed ? `${name}은(는) ${kind}에 속하는 대표적인 대상입니다. 정확한 대상은 확인되었으며, 한국어 설명이 충분하지 않아 핵심 정보만 표시합니다.`
-           : `${name}은(는) ${kind}에서 대표적으로 알아둘 대상입니다.`;
+ const kd=(e.descriptions?.ko?.value||'').trim();
+ // 카드 설명은 백과 본문이 아니라 어린이가 빠르게 이해하는 2~3문장만 사용한다.
+ // 학명·분류·연도 나열 등 지나치게 깊은 첫 문단은 그대로 복사하지 않는다.
+ if(kd){
+   let first=cleanLeadSentence(`${name}은(는) ${kd}입니다.`);
+   return first+` ${name}의 모습과 특징을 사진과 함께 살펴볼 수 있어요.`;
+ }
+ if(ko){
+   let first=cleanLeadSentence(ko.split(/(?<=[.!?。！？])\s+/)[0]||'');
+   if(first.length>130) first=first.slice(0,127)+'…';
+   if(first) return first+` ${name}의 대표적인 특징을 사진으로 함께 살펴보세요.`;
+ }
+ const label=SECTION_LABEL[section]||'항목';
+ return `${name}은(는) ${label}에서 대표적으로 알아둘 대상입니다. 사진을 보며 생김새와 특징을 살펴보세요.`;
 }
 async function resolveRepresentativeCard(name,subjectId,section){
+ // subjectId는 저장/UI 호환용일 뿐 검색 조건에는 사용하지 않는다.
  const kind=repKind(section,name);
  const e=await chooseEntity(name,kind);
  if(!e)return null;
@@ -1191,14 +1205,14 @@ async function resolveRepresentativeCard(name,subjectId,section){
 }
 const REP_CHECK_CACHE=new Map();
 async function verifyRepresentative(section,name){
- const k='simple-v4|'+COUNTRY+'|'+section+'|'+normalizeItemName(name);
+ const k='name-type-v5|'+section+'|'+normalizeItemName(name);
  if(REP_CHECK_CACHE.has(k))return REP_CHECK_CACHE.get(k);
  const promise=resolveRepresentativeCard(name,COUNTRY,section);
  REP_CHECK_CACHE.set(k,promise); return promise;
 }
 async function previewRepresentative(s,name,box){
  const token=String(Date.now())+Math.random(); box.dataset.previewToken=token;
- box.innerHTML='<div class="preview-card">🔎 <b>'+esc(countries[COUNTRY].name)+' · '+esc(SECTION_LABEL[s])+'</b> 범위에서 「'+esc(name)+'」을 여러 경로로 찾고 있어요.<br><span class="note">대표 이름의 정확한 대상 → 한국어 설명 → 같은 대상의 실제 사진만 확인합니다.</span></div>';
+ box.innerHTML='<div class="preview-card">🔎 <b>'+esc(countries[COUNTRY].name)+' · '+esc(SECTION_LABEL[s])+'</b> 범위에서 「'+esc(name)+'」을 여러 경로로 찾고 있어요.<br><span class="note">나라 조건 없이 대표 이름 + 대상 종류만 확인한 뒤, 짧은 한국어 설명과 같은 대상의 실제 사진을 찾습니다.</span></div>';
  const v=await verifyRepresentative(s,name);
  if(box.dataset.previewToken!==token)return;
  if(!v){
