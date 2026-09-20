@@ -1845,9 +1845,55 @@ function openRepresentativePreview(section,name,verified,panel){
    await renderSection(section);
    await renderRepresentativeCardButtonsV5(section);
    v16MarkRegisteredInPlace(section,name);
+   const refreshed=document.getElementById(section)?.querySelector('.rep-preview-v5');if(refreshed)refreshed.innerHTML='';
+   v22ScrollToSection(section);
  };
 }
 
+
+// ===== V23 FUSHIMI/YUTOKU LESSON: representative quality without complicating V3 =====
+// V3 itself is untouched. This is an upstream/helper policy:
+// importance/recognition first; when representative candidates are comparable, a verified entity
+// with a usable child description + its own photo gets a small tie-break advantage.
+async function v23RepresentativeQuality(name,section){
+ const req=v12Request(section,name);let v=null;try{v=await v12ResolveRequest(req)}catch(e){}
+ if(!v||!v.desc)return {name,cardReady:false,score:0,verified:null};
+ const ownPhoto=!!(v.photo||v.photos?.length);
+ const descGood=String(v.desc||'').length>=45;
+ return {name,cardReady:descGood&&ownPhoto,score:(descGood?1:0)+(ownPhoto?1:0),verified:v};
+}
+async function v23ChooseAmongComparable(names,section){
+ // Caller must pass only candidates already judged comparable in educational importance/recognition.
+ // Never lets searchability defeat a clearly more important representative.
+ const rows=[];for(const n of names||[])rows.push(await v23RepresentativeQuality(n,section));
+ rows.sort((a,b)=>b.score-a.score);return rows;
+}
+window.v23ChooseAmongComparable=v23ChooseAmongComparable;
+
+// Exact selected-page snapshot for assisted search.
+// This prevents "selected Yutoku title + Fushimi photo" style drift.
+async function v23ExactSelectedSnapshot(title,section){
+ let j=null;
+ try{
+   const r=await fetch('https://ko.wikipedia.org/api/rest_v1/page/summary/'+encodeURIComponent(title));
+   if(!r.ok)return null;j=await r.json();
+ }catch(e){return null}
+ if(!j||j.type==='disambiguation'||!j.extract)return null;
+ const desc=stripHtml(j.extract||'').replace(/\s+/g,' ').trim();
+ if(desc.length<45||!isMostlyKorean(desc))return null;
+ const corpus=(j.title+' '+(j.description||'')+' '+desc);
+ if(v22SectionScore(section,corpus)<=0){
+   // Keep the user's freedom to inspect similar names, but do not silently bind a wrong type.
+   return null;
+ }
+ return {
+   title:j.title||title,
+   desc:desc.split(/(?<=[.!?。！？])\s+/).slice(0,4).join(' '),
+   photo:j.thumbnail?.source||j.originalimage?.source||'',
+   entityId:j.wikibase_item||'',
+   pageId:j.pageid||''
+ };
+}
 const V22_SECTION_LABEL={food:'음식',fruit:'과일',animals:'동식물',places:'명소',culture:'문화',singers:'가수',athletes:'운동선수',people:'역사인물',art:'예술작품'};
 function v22SectionLabel(s){return V22_SECTION_LABEL[s]||s}
 function v22SectionScore(section,text){const r=CATEGORY_RULES[section]||{ko:[],en:[]},x=String(text||'').toLowerCase();return [...r.ko,...r.en].reduce((n,w)=>n+(x.includes(String(w).toLowerCase())?1:0),0)}
@@ -1855,7 +1901,7 @@ async function v22SearchHits(name,section){const label=v22SectionLabel(section),
 async function v22SuggestOtherSection(name,current){let corpus=name;try{const u='https://ko.wikipedia.org/w/api.php?action=query&list=search&srsearch='+encodeURIComponent(name)+'&srlimit=6&format=json&origin=*';const r=await fetch(u);if(r.ok){const j=await r.json();corpus+=' '+(j.query?.search||[]).map(x=>x.title+' '+x.snippet.replace(/<[^>]+>/g,' ')).join(' ')}}catch(e){}const cur=v22SectionScore(current,corpus);let best=null;for(const s of Object.keys(V22_SECTION_LABEL)){if(s===current)continue;const score=v22SectionScore(s,corpus);if(!best||score>best.score)best={section:s,score}}return best&&best.score>=2&&best.score>cur+1?best:null}
 function v22ScrollToSection(section){const el=document.getElementById(section);if(el){el.scrollIntoView({behavior:'smooth',block:'start'});setTimeout(()=>document.getElementById(section+'List')?.querySelector('.item:last-child')?.scrollIntoView({behavior:'smooth',block:'center'}),350)}}
 async function v18ManualAssist(section,typedName){const name=String(typedName||'').trim();if(!name)return;const panel=document.getElementById(section)?.querySelector('.rep-card-panel-v5');if(!panel)return alert('검색도움 화면을 준비하지 못했습니다.');const pv=panel.querySelector('.rep-preview-v5');if(!pv)return;const other=await v22SuggestOtherSection(name,section);if(other){pv.innerHTML=`<div class="preview-card"><h3>🧭 카테고리를 확인해 주세요</h3><p><b>${esc(name)}</b>은(는) ‘${esc(v22SectionLabel(section))}’보다 ‘${esc(v22SectionLabel(other.section))}’에 더 가까워 보여요.</p><div class="v22-category-choice"><button class="v22-move">📂 ${esc(v22SectionLabel(other.section))}에서 찾아보기</button><button class="v22-stay">🔎 ${esc(v22SectionLabel(section))}에서 계속 찾기</button><button class="rep-close-v5">닫기</button></div></div>`;pv.querySelector('.v22-move').onclick=()=>{pv.innerHTML='';document.getElementById(other.section)?.scrollIntoView({behavior:'smooth',block:'start'});setTimeout(()=>v18ManualAssist(other.section,name),300)};pv.querySelector('.v22-stay').onclick=()=>v22ShowAssistResults(section,name,pv);pv.querySelector('.rep-close-v5').onclick=()=>pv.innerHTML='';return}return v22ShowAssistResults(section,name,pv)}
-async function v22ShowAssistResults(section,name,pv){pv.innerHTML=`<div class="preview-card">🔎 <b>${esc(v22SectionLabel(section))}</b> 범위에서 후보를 찾고 있어요…</div>`;const hits=await v22SearchHits(name,section);if(!hits.length){pv.innerHTML='<div class="preview-card"><b>관련 후보를 찾지 못했습니다.</b><button class="rep-close-v5">닫기</button></div>';pv.querySelector('.rep-close-v5').onclick=()=>pv.innerHTML='';return}const good=hits.filter(h=>h.catScore>0),shown=(good.length>=3?good:hits).slice(0,8);const renderList=()=>{pv.innerHTML=`<div class="preview-card"><h3>🔎 ${esc(v22SectionLabel(section))} 후보</h3><p>하나씩 확인하고, 맞지 않으면 <b>← 다른 후보 보기</b>로 돌아오세요.</p><div class="v22-suggestions"></div><button class="rep-close-v5">닫기</button></div>`;const host=pv.querySelector('.v22-suggestions');for(const h of shown){const b=document.createElement('button');b.className='rep-card-btn-v5 can-make';b.textContent=h.title;host.appendChild(b);b.onclick=()=>preview(h)}pv.querySelector('.rep-close-v5').onclick=()=>pv.innerHTML=''};const preview=async h=>{pv.innerHTML='<div class="preview-card">🔎 선택한 대상을 확인하고 있어요…</div>';let found=null;try{found=await genericDescription(h.title,COUNTRY,section)}catch(e){};if(!found&&h.summary?.text&&h.catScore>0)found={desc:h.summary.text.split(/(?<=[.!?。！？])\s+/).slice(0,4).join(' ')};if(!found){pv.innerHTML='<div class="preview-card"><b>이 카테고리의 항목으로 충분히 확인하지 못했습니다.</b><button class="v22-back">← 다른 후보 보기</button></div>';pv.querySelector('.v22-back').onclick=renderList;return}let photo='';try{const sr=await fetch('https://ko.wikipedia.org/api/rest_v1/page/summary/'+encodeURIComponent(h.title));if(sr.ok){const sj=await sr.json();photo=sj.thumbnail?.source||sj.originalimage?.source||''}}catch(e){};if(!photo){try{photo=await autoPhoto(h.title,COUNTRY,section)||''}catch(e){}}pv.innerHTML=`<div class="preview-card"><h3>${esc(h.title)}</h3><p>${esc(found.desc)}</p>${photo?`<div class="v3-photo-choices"><img src="${esc(photo)}" alt=""></div>`:''}<div class="preview-actions"><button class="v22-back">← 다른 후보 보기</button><button class="v18-manual-save">⭐ 이 항목 추가</button><button class="rep-close-v5">닫기</button></div></div>`;pv.querySelector('.v22-back').onclick=renderList;pv.querySelector('.rep-close-v5').onclick=()=>pv.innerHTML='';pv.querySelector('.v18-manual-save').onclick=async()=>{const a=getCustom(section);if(hasIdentity(h.title,a))return alert('이미 같은 항목이 있습니다.');const item={id:newItemId(),name:h.title,desc:found.desc,emoji:'⭐',source:'manual',photoVerified:!!photo,photoRemote:photo};try{setCustom(section,[...a,item])}catch(e){return alert('카드 저장 중 오류가 발생했습니다.')}pv.innerHTML='';await renderSection(section);await renderRepresentativeCardButtonsV5(section);v16MarkRegisteredInPlace(section,h.title);v22ScrollToSection(section)}};renderList()}
+async function v22ShowAssistResults(section,name,pv){pv.innerHTML=`<div class="preview-card">🔎 <b>${esc(v22SectionLabel(section))}</b> 범위에서 후보를 찾고 있어요…</div>`;const hits=await v22SearchHits(name,section);if(!hits.length){pv.innerHTML='<div class="preview-card"><b>관련 후보를 찾지 못했습니다.</b><button class="rep-close-v5">닫기</button></div>';pv.querySelector('.rep-close-v5').onclick=()=>pv.innerHTML='';return}const good=hits.filter(h=>h.catScore>0),shown=(good.length>=3?good:hits).slice(0,8);const renderList=()=>{pv.innerHTML=`<div class="preview-card"><h3>🔎 ${esc(v22SectionLabel(section))} 후보</h3><p>하나씩 확인하고, 맞지 않으면 <b>← 다른 후보 보기</b>로 돌아오세요.</p><div class="v22-suggestions"></div><button class="rep-close-v5">닫기</button></div>`;const host=pv.querySelector('.v22-suggestions');for(const h of shown){const b=document.createElement('button');b.className='rep-card-btn-v5 can-make';b.textContent=h.title;host.appendChild(b);b.onclick=()=>preview(h)}pv.querySelector('.rep-close-v5').onclick=()=>pv.innerHTML=''};const preview=async h=>{pv.innerHTML='<div class="preview-card">🔎 선택한 대상을 확인하고 있어요…</div>';let exact=null;try{exact=await v23ExactSelectedSnapshot(h.title,section)}catch(e){};let found=exact?{desc:exact.desc}:null;if(!found&&h.summary?.text&&h.catScore>0)found={desc:h.summary.text.split(/(?<=[.!?。！？])\s+/).slice(0,4).join(' ')};if(!found){pv.innerHTML='<div class="preview-card"><b>이 카테고리의 항목으로 충분히 확인하지 못했습니다.</b><p>비슷한 이름은 보여드리지만, 정확한 대상을 확인하지 못한 카드는 억지로 만들지 않습니다.</p><button class="v22-back">← 다른 후보 보기</button></div>';pv.querySelector('.v22-back').onclick=renderList;return}let photo=exact?.photo||'';pv.innerHTML=`<div class="preview-card"><h3>${esc(h.title)}</h3><p>${esc(found.desc)}</p>${photo?`<div class="v3-photo-choices"><img src="${esc(photo)}" alt=""></div>`:''}<div class="preview-actions"><button class="v22-back">← 다른 후보 보기</button><button class="v18-manual-save">⭐ 이 항목 추가</button><button class="rep-close-v5">닫기</button></div></div>`;pv.querySelector('.v22-back').onclick=renderList;pv.querySelector('.rep-close-v5').onclick=()=>pv.innerHTML='';pv.querySelector('.v18-manual-save').onclick=async()=>{const a=getCustom(section);if(hasIdentity(h.title,a))return alert('이미 같은 항목이 있습니다.');const item={id:newItemId(),name:h.title,desc:found.desc,emoji:'⭐',source:'manual',photoVerified:!!photo,photoRemote:photo,entityId:String(exact?.entityId||''),entityTitle:String(exact?.title||h.title),pageId:exact?.pageId==null?'':String(exact.pageId)};try{setCustom(section,[...a,item])}catch(e){return alert('카드 저장 중 오류가 발생했습니다.')}pv.innerHTML='';await renderSection(section);await renderRepresentativeCardButtonsV5(section);v16MarkRegisteredInPlace(section,h.title);v22ScrollToSection(section)}};renderList()}
 function manualRepresentative(section,name){
  // "자동 카드 불가" means the strict automatic gate failed, not that the name is unknown.
  // Use assisted search instead of silently creating a manual card.
@@ -1988,6 +2034,7 @@ openCountry=function(code){
 
 window.__MAGIC_V7_DIAGNOSTIC={
  engine:'tested V3 core',
+ lessonV23:'Fushimi/Yutoku: representative quality tie-break + exact selected-page photo binding',
  fruitOverview:'native COUNTRY_OVERVIEWS array',
  aliasMode:'canonical + reverse alias group',
  availability:'V3 result with description + photo'
