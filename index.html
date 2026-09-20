@@ -32,13 +32,13 @@ button.improve-desc{background:#e7f4ff;border-color:#87bde8}button.last-confirme
 </div></div>
 <script>
 const KB={
- food:{title:'스페인의 대표 음식',intro:'스페인 음식은 지역마다 매우 다양합니다. 쌀요리와 해산물, 햄, 감자요리, 차가운 수프, 작은 안주 문화가 특히 잘 알려져 있습니다. 먼저 스페인을 이해하는 데 도움이 되는 대표 음식 이름을 보여주고, 카드는 그 다음에 만듭니다.',
+ food:{title:'스페인의 대표 음식',intro:'스페인은 지역마다 기후와 생산물이 달라 음식문화도 매우 다양합니다. 지중해 연안에서는 올리브유와 채소, 쌀, 생선과 해산물을 많이 활용하고, 내륙에서는 육류와 콩을 이용한 요리도 발달했습니다. 발렌시아의 파에야, 안달루시아의 가스파초, 갈리시아의 문어요리처럼 지역을 대표하는 음식이 많으며, 감자와 달걀로 만드는 토르티야 에스파뇰라와 하몬 이베리코도 널리 알려져 있습니다. 여러 음식을 조금씩 즐기는 타파스 문화 역시 스페인의 음식문화를 이해하는 중요한 특징입니다.',
  names:['파에야','하몬 이베리코','토르티야 에스파뇰라','가스파초','추로스','파타타스 브라바스','감바스 알 아히요','풀포 아 라 가예가','크로케타','판 콘 토마테','코시도 마드릴레뇨','파바다 아스투리아나','살모레호','피스토']},
- animal:{title:'스페인의 대표 동물',intro:'스페인은 지중해와 대서양, 산악지대와 건조지역이 함께 있어 다양한 야생동물이 삽니다. 식물과 섞지 않고 동물만 따로 살펴봅니다.',
+ animal:{title:'스페인의 대표 동물',intro:'스페인은 지중해와 대서양에 접하고 피레네산맥을 비롯한 산악지대와 건조한 지역도 있어 다양한 야생동물이 살아갑니다. 이베리아반도에 특징적인 이베리아스라소니와 이베리아늑대, 산악지대의 스페인아이벡스 등이 잘 알려져 있으며 습지와 해안에서는 여러 새도 볼 수 있습니다.',
  names:['이베리아스라소니','이베리아늑대','스페인아이벡스','불곰','큰홍학','수염독수리','스페인제국수리','몽구스','붉은사슴','멧돼지']},
- plant:{title:'스페인의 대표 식물',intro:'스페인의 식생은 지중해성 기후와 산악·대서양 지역의 영향을 함께 받습니다. 여기서는 그림이나 오일 같은 동음이의 대상을 찾는 것이 아니라 식물 자체의 이름을 먼저 제시합니다.',
+ plant:{title:'스페인의 대표 식물',intro:'스페인의 많은 지역은 여름이 덥고 건조한 지중해성 기후의 영향을 받아 건조함에 잘 견디는 나무와 허브가 자랍니다. 올리브나무와 코르크참나무, 홀름참나무가 대표적이며 오렌지나무와 포도나무도 스페인의 농업과 풍경에서 친숙합니다. 산악지대와 북부에는 지역 환경에 맞는 침엽수와 다양한 식물이 분포합니다.',
  names:['올리브나무','코르크참나무','오렌지나무','라벤더','로즈메리','백리향','알레포소나무','스페인전나무','홀름참나무','포도나무']},
- art:{title:'스페인의 대표 예술작품',intro:'예술가의 이름과 작품의 이름을 구분합니다. 먼저 스페인 미술을 설명할 때 널리 언급되는 작품 자체를 보여주고, 정확한 작품 사진과 설명을 확보할 수 있을 때 카드로 만듭니다.',
+ art:{title:'스페인의 대표 예술작품',intro:'스페인은 엘 그레코, 벨라스케스, 고야, 피카소, 달리 등 여러 시대의 중요한 예술가와 연결되어 있습니다. 회화에서는 벨라스케스의 《시녀들》, 고야의 《1808년 5월 3일》, 피카소의 《게르니카》, 달리의 《기억의 지속》처럼 널리 알려진 작품들이 있습니다. 여기서는 예술가와 작품을 구분하여 작품 자체를 먼저 소개합니다.',
  names:['게르니카','시녀들','1808년 5월 3일','기억의 지속','쾌락의 정원','옷을 입은 마하','옷을 벗은 마하','십자가의 성 요한의 그리스도','아비뇽의 처녀들','성모 승천 (엘 그레코)']}
 };
 let kbCurrent='';
@@ -48,7 +48,7 @@ function kbEsc(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'
 function kbShow(type,btn){
  kbCurrent=type;document.querySelectorAll('.kbTabs button').forEach(b=>b.classList.remove('on'));btn.classList.add('on');
  const d=KB[type],c=document.getElementById('kbContent');document.getElementById('kbPreview').innerHTML='';
- c.innerHTML=`<div class="kbBox"><h2>${d.title}</h2><p class="kbIntro">${d.intro}</p><p class="kbHint">대표적인 순서로 먼저 이름을 열거합니다. 이름을 누르면 그때 카드 제작 가능성을 확인합니다.</p><div class="kbNames">${d.names.map((n,i)=>`<button class="kbName" onclick="kbCheck('${type}',${i},this)"><span class="kbRank">${i+1}</span>${n}<small>카드 확인하기</small></button>`).join('')}</div></div>`;
+ c.innerHTML=`<div class="kbBox"><h2>${d.title}</h2><div class="kbIntro">${d.intro}</div><h3 style="margin:18px 0 8px">📚 대표적인 ${type==='food'?'음식':type==='animal'?'동물':type==='plant'?'식물':'예술작품'}</h3><p class="kbHint">아래 목록은 카드 제작 여부와 관계없이 이 분야를 이해하기 위해 보여주는 백과사전 정보입니다.</p><div style="font-size:17px;line-height:1.8;font-weight:750">${d.names.map((n,i)=>`<span style="white-space:nowrap">${i+1}. ${n}</span>`).join(' · ')}</div></div><div class="kbBox"><h3>⭐ 카드로 더 자세히 알아보기</h3><p class="kbHint">위에서 소개한 대표 항목 중 하나를 골라 사진과 간단한 설명이 있는 카드로 만들 수 있는지 확인합니다. 카드가 만들어지지 않아도 위의 백과 설명과 대표 이름 목록은 그대로 남습니다.</p><div class="kbNames">${d.names.map((n,i)=>`<button class="kbName" onclick="kbCheck('${type}',${i},this)">${n}<small>카드 확인하기</small></button>`).join('')}</div></div>`;
 }
 function kbTypeFit(type,title,desc){
  const x=(title+' '+desc).toLowerCase();
