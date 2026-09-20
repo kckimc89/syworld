@@ -65,7 +65,23 @@ button.improve-desc{background:#e7f4ff;border-color:#87bde8}button.last-confirme
 .rep-card-btn-v5.can-make{background:#e9e3ff!important;border:2px solid #6446d8!important;color:#301d88!important}
 .rep-card-btn-v5.registered{background:#e8f4ea!important;border:2px solid #9bc7a3!important;color:#52705a!important;opacity:.68!important}
 .rep-card-btn-v5.cannot-make{background:#f5f6f8!important;border:1px solid #d6d9df!important;color:#9297a0!important}
-</style></head><body>
+</style>
+<style id="v11-photo-quality">
+.rep-preview-v5 .preview-card{max-width:760px;margin:14px auto;padding:18px}
+.v3-photo-choices{display:grid!important;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))!important;gap:12px!important;width:100%!important;align-items:stretch!important}
+.v3-photo-choices label{display:flex!important;flex-direction:column!important;gap:6px!important;min-width:0!important;background:#f4f5f7!important;border-radius:14px!important;padding:8px!important}
+.v3-photo-choices img{display:block!important;width:100%!important;height:180px!important;max-width:none!important;object-fit:contain!important;object-position:center!important;background:#eef0f2!important;border-radius:10px!important}
+.rep-preview-v5 .preview-card>p{font-size:17px;line-height:1.65;max-width:42em}
+.item .photo-area{height:220px!important;min-height:220px!important;display:flex!important;align-items:center!important;justify-content:center!important;overflow:hidden!important;background:#f1f2f4!important}
+.item .photo-area img{width:100%!important;height:100%!important;object-fit:contain!important;object-position:center!important}
+@media(max-width:700px){
+ .v3-photo-choices{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ .v3-photo-choices img{height:160px!important}
+ .rep-preview-v5 .preview-card{padding:14px!important}
+ .item .photo-area{height:200px!important;min-height:200px!important}
+}
+</style>
+</head><body>
 <style>
 #kbBtn{position:fixed;right:14px;bottom:14px;z-index:12020;border:0;border-radius:999px;padding:13px 17px;background:#244b76;color:#fff;font-weight:900;box-shadow:0 4px 14px #0003}
 #kbPanel{display:none;position:fixed;inset:0;z-index:12030;background:#f7f4ec;overflow:auto;padding:16px}
@@ -1530,10 +1546,46 @@ async function sharedResolve(name,type){
  }
  if(!(best&&best.desc.length>45&&bestScore>0))return null;
  return {name,title:best.p.title||name,entityId:best.p.pageprops?.wikibase_item||'',pageId:best.p.pageid||'',
-   desc:best.desc.slice(0,900),photo:best.p.thumbnail?.source||'',photos:best.p.thumbnail?.source?[best.p.thumbnail.source]:[],
+   desc:v11ChildDescription(best.desc,name,type),photo:best.p.thumbnail?.source||'',photos:best.p.thumbnail?.source?[best.p.thumbnail.source]:[],
    sources:['공통 카드 검색엔진'],score:bestScore};
 }
 
+
+// ===== V11 CHILD CARD QUALITY LAYER =====
+const V11_COUNTRY_WORDS=['미국','일본','중국','프랑스','독일','영국','이탈리아','멕시코','캐나다','브라질','러시아','인도','호주','포르투갈','아르헨티나','칠레','한국','대한민국'];
+function v11CountryName(){
+ try{return countries?.[COUNTRY]?.name||''}catch(e){return ''}
+}
+function v11CleanSentence(s,name){
+ let x=String(s||'').replace(/\[[^\]]*\]/g,' ').replace(/\([^)]*(?:영어|스페인어|라틴어|학명|발음|IPA|[A-Za-z]{5,})[^)]*\)/g,' ')
+   .replace(/\s+/g,' ').trim();
+ // remove leading foreign/original-name notation
+ x=x.replace(new RegExp('^'+String(name).replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\s*\\([^)]*\\)\\s*(?:은|는)?\\s*'),'');
+ return x;
+}
+function v11ChildDescription(raw,name,section){
+ const own=v11CountryName();
+ let s=String(raw||'').replace(/\s+/g,' ').trim();
+ let sentences=s.split(/(?<=[.!?。！？])\s+/).map(x=>v11CleanSentence(x,name)).filter(Boolean);
+ const technical=/(학명|라틴어|어원|발음|IPA|로마자|원어로|영어로|스페인어로|프랑스어로|독일어로|일본어로|중국어로)/i;
+ const unrelatedCountry=(x)=>{
+   const mentioned=V11_COUNTRY_WORDS.filter(c=>c!==own&&x.includes(c));
+   return mentioned.length>0;
+ };
+ // Prefer essence: definition, ingredients/form, characteristic/use. Avoid unrelated-country detours and technical notation.
+ let keep=sentences.filter(x=>!technical.test(x)&&!unrelatedCountry(x));
+ if(!keep.length)keep=sentences.filter(x=>!technical.test(x));
+ if(!keep.length)keep=sentences;
+ // Remove list-heavy / citation-like sentences and duplicates.
+ keep=keep.filter((x,i,a)=>x.length>=18 && !a.slice(0,i).some(y=>y===x));
+ let out=keep.slice(0,4).join(' ');
+ // hard readability cap, only at sentence boundary where possible
+ if(out.length>380){
+   let cut=out.slice(0,380), p=Math.max(cut.lastIndexOf('.'),cut.lastIndexOf('다.'));
+   out=(p>180?cut.slice(0,p+1):cut.slice(0,360).replace(/\s+\S*$/,'')+'…');
+ }
+ return out||String(raw||'').slice(0,320);
+}
 // ===== V10: ONE INPUT -> ONE PIPELINE =====
 function cardInputName(raw){return String(raw||'').replace(/^(동물|식물)\s*[—\-:]\s*/,'').replace(/^[《〈「『"']+|[》〉」』"']+$/g,'').replace(/\s+/g,' ').trim()}
 function cardInputKind(section,raw){
@@ -1568,7 +1620,7 @@ function parseRepNames(text){
 }
 async function precheckRepresentative(section,name){
  const normalized=cardInputName(name),kind=cardInputKind(section,name);
- const key=['V10-PIPELINE',kind,normalized].join('|');
+ const key=['V11-QUALITY',kind,normalized].join('|');
  if(repAvailabilityCache.has(key))return repAvailabilityCache.get(key);
  // Persistent cache: one successful search is reused across Safari/app launches.
  try{
@@ -1585,7 +1637,7 @@ function openRepresentativePreview(section,name,verified,panel){
  let pv=panel.querySelector('.rep-preview-v5');
  if(!pv){pv=document.createElement('div');pv.className='rep-preview-v5';panel.appendChild(pv);}
  // Reuse the verified snapshot; do not search a second time.
- const photoChoices=(verified.photos||[verified.photo]).slice(0,5);
+ const photoChoices=(verified.photos||[verified.photo]).filter(Boolean).slice(0,5);
  pv.innerHTML=`<div class="preview-card"><h3>${esc(name)}</h3><p>${esc(verified.desc)}</p><div class="v3-photo-choices">${photoChoices.map((u,i)=>`<label><input type="radio" name="v3photo" value="${esc(u)}" ${i===0?'checked':''}><img src="${esc(u)}" alt=""></label>`).join('')}</div><div class="preview-actions"><button class="rep-save-v5">⭐ 선택한 사진으로 카드 만들기</button><button class="rep-close-v5">닫기</button></div></div>`;
  pv.querySelector('.rep-close-v5').onclick=()=>pv.innerHTML='';
  pv.querySelector('.rep-save-v5').onclick=async()=>{
