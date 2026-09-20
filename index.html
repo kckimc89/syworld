@@ -1104,4 +1104,32 @@ async function updateBackupLast(){const name=localStorage.getItem('last_backup_n
 const backupModal=document.getElementById('backupModal');document.getElementById('backupBtn').onclick=()=>{backupModal.classList.remove('hidden');updateBackupLast()};document.getElementById('backupClose').onclick=()=>backupModal.classList.add('hidden');backupModal.onclick=e=>{if(e.target===backupModal)backupModal.classList.add('hidden')};document.getElementById('makeBackup').onclick=makeBackupFile;document.getElementById('restoreLast').onclick=async()=>{const d=await loadLastBackup();if(!d){alert('이 기기에 기억된 마지막 백업이 없습니다. 다른 백업 파일을 선택해 주세요.');return}const n=localStorage.getItem('last_backup_name')||'마지막 백업';if(confirm('「'+n+'」으로 복원할까요?\n현재 수정 내용과 등록 사진은 이 백업 시점의 내용으로 바뀝니다.'))await applyBackup(d)};document.getElementById('chooseBackup').onclick=()=>document.getElementById('backupFileInput').click();document.getElementById('backupFileInput').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;try{const d=JSON.parse(await f.text());if(!validBackup(d))throw new Error();if(confirm('선택한 백업 파일\n「'+f.name+'」\n으로 복원할까요?')){await saveLastBackup(d);localStorage.setItem('last_backup_name',f.name);localStorage.setItem('last_backup_at',d.createdAt||new Date().toISOString());await applyBackup(d)}}catch(err){alert('이 백업 파일을 읽을 수 없습니다. 세계 나라 백과사전에서 만든 JSON 백업 파일인지 확인해 주세요.')}finally{e.target.value=''}};
 
 if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));}
-</script></body></html>
+</script>
+<style>
+#foodEncyclopediaOverview{margin:14px 0;padding:16px 17px;background:#fffaf0;border:1px solid #ead9ad;border-radius:18px;line-height:1.65}
+#foodEncyclopediaOverview h3{margin:0 0 8px;font-size:20px}
+#foodEncyclopediaOverview .rep{margin-top:12px;padding-top:10px;border-top:1px dashed #dfc98d}
+</style>
+<script>
+(function(){
+ const overviewHTML=`<div id="foodEncyclopediaOverview">
+ <h3>🍽️ 음식과 식생활</h3>
+ <div>스페인은 지역마다 기후와 생산물이 달라 음식문화도 매우 다양합니다. 지중해 연안에서는 올리브유, 채소, 쌀, 생선과 해산물을 많이 이용하고, 내륙에서는 육류와 콩을 활용한 음식도 발달했습니다. 발렌시아의 파에야, 안달루시아의 가스파초, 갈리시아의 문어요리처럼 지역을 대표하는 음식이 많습니다. 감자와 달걀로 만드는 토르티야 에스파뇰라와 하몬도 널리 알려져 있으며, 여러 음식을 조금씩 나누어 먹는 타파스 문화도 스페인의 식생활을 이해하는 중요한 특징입니다.</div>
+ <div class="rep"><b>대표적인 음식</b><br>파에야 · 하몬 이베리코 · 토르티야 에스파뇰라 · 가스파초 · 추로스 · 파타타스 브라바스 · 감바스 알 아히요 · 풀포 아 라 가예가 · 크로케타 · 판 콘 토마테 · 코시도 마드릴레뇨 · 파바다 아스투리아나 · 살모레호 · 피스토</div>
+ </div>`;
+ function add(){
+   if(document.getElementById('foodEncyclopediaOverview')) return;
+   const all=[...document.querySelectorAll('body *')];
+   const el=all.find(e=>e.children.length===0 && /음식과 식생활을 알아보아요/.test((e.textContent||'').replace(/\s+/g,' ')));
+   if(!el)return;
+   let host=el.parentElement;
+   if(!host)return;
+   const box=document.createElement('div');box.innerHTML=overviewHTML;
+   host.insertBefore(box.firstElementChild,el.nextSibling);
+ }
+ new MutationObserver(()=>setTimeout(add,0)).observe(document.body,{childList:true,subtree:true});
+ document.addEventListener('click',()=>setTimeout(add,50));
+ setTimeout(add,500);
+})();
+</script>
+</body></html>
