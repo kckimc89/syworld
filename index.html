@@ -9,6 +9,38 @@
 .backup-modal{position:fixed;inset:0;background:#0006;z-index:100;display:flex;align-items:center;justify-content:center;padding:18px}.backup-panel{width:min(560px,100%);background:#fff;border-radius:20px;padding:22px;box-shadow:0 15px 50px #0004}.backup-panel h2{margin:0 0 8px}.backup-panel p{margin:7px 0;color:#536276}.backup-actions{display:grid;gap:10px;margin-top:16px}.backup-actions button{border:1px solid #bfd0e3;border-radius:13px;padding:12px 14px;font-weight:850;background:#eef5ff;text-align:left}.backup-actions button.restore-last{background:#fff7d8;border-color:#ead39d}.backup-actions button.choose-backup{background:#e9f8ee;border-color:#bfe1c9}.backup-close{float:right;border:0;background:#eef1f4;border-radius:999px;width:36px;height:36px;font-size:1.1rem}.backup-last{background:#f7f8fa;border-radius:12px;padding:10px 12px;margin-top:12px;font-size:.92rem}.backup-warning{font-size:.84rem!important;color:#7a5a00!important;background:#fff9e8;border-radius:10px;padding:8px 10px}.brandline{flex-wrap:wrap}
 button.improve-desc{background:#e7f4ff;border-color:#87bde8}button.last-confirmed{background:#fff3d8;border-color:#e3bd65}
 .candidate-box{margin-top:14px;padding:14px;border:1px dashed #9db8d8;border-radius:14px;background:#f7fbff}.candidate-box h3{margin:0 0 6px}.candidate-chips{display:flex;gap:7px;flex-wrap:wrap}.candidate-chip{border:1px solid #b8cbe1;background:white;border-radius:999px;padding:7px 10px;font-weight:850}.candidate-chip.added{opacity:.38;background:#eef1f4;color:#667085;border-color:#d8dee8}.candidate-chip.available{opacity:1}.candidate-legend{font-size:.82rem;color:#68758a;margin:4px 0 9px}.preview-card{margin-top:12px;border:2px solid #8bb2df;border-radius:15px;padding:13px;background:white}.preview-card img{width:100%;max-height:260px;object-fit:contain;background:#eef1f4;border-radius:10px}.preview-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.preview-actions button{border:1px solid #cbd5e1;background:white;border-radius:10px;padding:8px 11px;font-weight:800}.discover{background:#fff7d8;border:1px solid #ead39d;border-radius:12px;padding:9px 11px;margin-bottom:12px}.trial-note{background:#eaf8ef;border:1px solid #b9dfc5;border-radius:14px;padding:12px;margin:10px 0 18px}
+</style>
+<style>
+[id*="DeletedNames"], [id*="deletedNames"], .deleted-names,
+[id*="recommend"], [id*="Recommend"], .recommend, .recommend-box,
+.legacy-recommendations, .deleted-items {display:none!important}
+</style>
+
+<style>
+.rep-card-panel-v4{margin-top:14px}
+.rep-card-buttons-v4{display:flex;flex-wrap:wrap;gap:8px}
+.rep-card-btn-v4{border:1px solid #d9d3ff;background:#fff;border-radius:999px;padding:9px 13px;font-weight:750;font-size:14px;cursor:pointer}
+.rep-card-btn-v4:active{transform:scale(.98)}
+</style>
+
+<style>
+.rep-card-panel-v4{display:none!important}
+.candidate-box{display:none!important}
+.rep-card-panel-v5{margin-top:14px}
+.rep-title-v5{font-weight:900;font-size:18px;margin-bottom:6px}
+.rep-status-v5{font-size:13px;opacity:.72;margin-bottom:10px}
+.rep-card-buttons-v5{display:flex;flex-wrap:wrap;gap:8px}
+.rep-card-btn-v5{border-radius:999px;padding:9px 13px;font-weight:800;font-size:14px;cursor:pointer}
+.rep-card-btn-v5.can-make{border:2px solid #7a63e8;background:#eeeaff;box-shadow:0 2px 7px #0001}
+.rep-card-btn-v5.cannot-make{border:1px solid #cfd5df;background:#f5f6f8;color:#7a8290}
+.rep-preview-v5{margin-top:10px}
+</style>
+<style>.country-overview,.fruit-overview-v4{display:none!important}</style><style>
+.v3-photo-choices{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin:10px 0}
+.v3-photo-choices label{position:relative;border:2px solid transparent;border-radius:12px;overflow:hidden;background:#fff}
+.v3-photo-choices label:has(input:checked){border-color:#7657e8}
+.v3-photo-choices input{position:absolute;top:6px;left:6px;z-index:2}
+.v3-photo-choices img{display:block;width:100%;height:100px;object-fit:cover}
 </style></head><body>
 <style>
 #kbBtn{position:fixed;right:14px;bottom:14px;z-index:12020;border:0;border-radius:999px;padding:13px 17px;background:#244b76;color:#fff;font-weight:900;box-shadow:0 4px 14px #0003}
@@ -88,19 +120,7 @@ function kbHelp(name,type,best,pv){
 async function kbCopyName(name){try{await navigator.clipboard.writeText(name);alert('이름을 복사했습니다: '+name)}catch(_){alert('이름: '+name)}}
 function kbOpenOriginalAdd(name){kbClose();alert('V5.2의 직접 추가 기능에서 ['+name+']을 검색해 추가해 보세요.\n다음 판에서는 이 이름을 자동으로 넘겨주도록 연결하겠습니다.')}
 
-function renderFruitOverviewV1(){
-  const ov=(typeof COUNTRY_OVERVIEWS!=='undefined' && COUNTRY_OVERVIEWS[COUNTRY] && COUNTRY_OVERVIEWS[COUNTRY].fruit);
-  const sec=document.getElementById('fruit');
-  if(!sec||!ov)return;
-  let box=sec.querySelector('.country-overview');
-  if(!box){
-    box=document.createElement('div');
-    box.className='country-overview note';
-    const cards=sec.querySelector('.cards');
-    sec.insertBefore(box,cards||sec.firstChild);
-  }
-  box.innerHTML='<div style="font-weight:800;margin-bottom:6px">전체 설명</div><p style="line-height:1.75;margin:0 0 12px">'+ov.intro+'</p><div style="font-weight:800;margin-bottom:6px">대표적으로 알아둘 이름</div><p style="line-height:1.75;margin:0">'+ov.names+'</p>';
-}
+function renderFruitOverviewV1(){}
 const __fruitOpenCountry=(typeof openCountry==='function')?openCountry:null;
 if(__fruitOpenCountry){
   openCountry=function(code){const r=__fruitOpenCountry(code);setTimeout(renderFruitOverviewV1,0);return r;}
@@ -679,6 +699,7 @@ async function resolveWikipediaEntity(name,subjectId,section,source='discover'){
 const CANDIDATES={
  ES:{
   food:['파에야','감바스 알 아히요','또르띠야 에스파뇰라','추로스','가스파초','하몽 이베리코','크로케타','판 콘 토마테','풀포 아 라 가예가','크레마 카탈라나','피스토','보카디요'],
+  fruit:['🍊 과일','스페인은 햇빛이 풍부하고 따뜻한 지역이 많아 과일 재배가 활발합니다. 지중해 연안에서는 오렌지와 레몬 같은 감귤류가 많이 자라고, 포도는 오랜 농업과 식문화에서 중요한 과일입니다. 무화과와 복숭아도 여러 지역에서 재배됩니다. 과일을 살펴보면 스페인의 따뜻한 기후와 지역별 농업의 특징을 함께 이해할 수 있습니다.','오렌지 · 포도 · 레몬 · 무화과 · 복숭아'],
   animals:['이베리아스라소니','스페인아이벡스','이베리아늑대','큰홍학','스페인제국수리','올리브나무','라벤더','홀름참나무','지중해소나무','스페인전나무','붉은다람쥐'],
   places:['사그라다 파밀리아','알람브라 궁전','프라도 미술관','구엘 공원','세비야 대성당','톨레도 구시가지','세고비아 수도교','테이데산','산티아고 데 콤포스텔라 대성당','메스키타','마요르카섬','코르도바 역사 지구'],
   culture:['플라멩코','산 페르민 축제','세마나 산타','카스테예르스 인간탑','라 토마티나','플라멩코 기타','스페인 도자기','라리가 축구 문화','카탈루냐 산 조르디의 날','라스 파야스','스페인의 여러 언어','삼왕의 날'],
@@ -688,6 +709,7 @@ const CANDIDATES={
   art:['게르니카','시녀들','기억의 지속','돈키호테','알타미라 동굴 벽화','아랑후에스 협주곡','알타미라 동굴 벽화','아랑후에스 협주곡']},
  JP:{
   food:['스시','라멘','우동','소바','덴푸라','오코노미야키','다코야키','돈부리','돈카쓰','오니기리','모찌','가이세키'],
+  fruit:['🍎 과일','일본은 남북으로 길고 계절 변화가 뚜렷해 지역마다 다양한 과일이 자랍니다. 따뜻한 지역에서는 귤이 많이 재배되고, 서늘한 지역에서는 사과가 유명합니다. 감·포도·복숭아·배처럼 익숙한 과일이 많고 지역마다 특색 있는 품종이 발달했습니다.','귤 · 사과 · 감 · 포도 · 복숭아 · 배'],
   animals:['일본원숭이','두루미','일본사슴','일본산양','오키나와뜸부기','벚나무','삼나무','단풍나무','대나무','매화나무','일본왕도롱뇽','여우'],
   places:['후지산','기요미즈데라','후시미 이나리 신사','히메지성','도다이지','히로시마 평화기념공원','도쿄 스카이트리','아라시야마 대나무숲','미야지마 이쓰쿠시마 신사','오키나와 슈리성','닛코 도쇼구','가나자와 겐로쿠엔'],
   culture:['다도','가부키','노','스모','하나미','마쓰리','오리가미','우키요에','와다이코','기모노','분라쿠','하이쿠'],
@@ -697,6 +719,7 @@ const CANDIDATES={
   art:['가나가와 해변의 높은 파도 아래','겐지 이야기','라쇼몽','센과 치히로의 행방불명','센과 치히로의 행방불명','도카이도 53차','풍신뇌신도 병풍','도다이지 대불']},
  US:{
   food:['햄버거','핫도그','바비큐','애플파이','클램차우더','검보','버펄로 윙','팬케이크','맥앤치즈','콘브레드','포보이','뉴욕 치즈케이크'],
+  fruit:['🫐 과일','미국은 국토가 넓고 기후가 다양해 여러 종류의 과일을 재배합니다. 지역에 따라 사과·오렌지·포도뿐 아니라 블루베리·크랜베리·딸기 같은 베리류도 많이 생산됩니다. 다양한 기후 덕분에 여러 과일의 주요 생산지를 한 나라 안에서 만날 수 있습니다.','사과 · 오렌지 · 포도 · 블루베리 · 크랜베리 · 딸기'],
   animals:['아메리카들소','흰머리수리','회색곰','아메리카악어','프롱혼','자이언트세쿼이아','캘리포니아레드우드','사와로선인장','슈가메이플','미국악어','무스','모나크나비'],
   places:['자유의 여신상','그랜드 캐니언','옐로스톤 국립공원','요세미티 국립공원','골든게이트교','백악관','스미스소니언 박물관','러시모어산','하와이 화산 국립공원','게이트웨이 아치','타임스스퀘어','케네디 우주센터'],
   culture:['재즈','블루스','브로드웨이 뮤지컬','할리우드 영화','추수감사절','슈퍼볼','힙합','로데오','코믹콘','마디그라','컨트리 음악','하와이 훌라 문화'],
@@ -1048,7 +1071,7 @@ async function previewCandidate(s,target,box){
 async function renderCandidates(s,host){
  const targets=await discoverCandidateTargets(COUNTRY,s);if(!targets.length)return;
  const active=getCustom(s),wrap=document.createElement('div');wrap.className='candidate-box';
- wrap.innerHTML=`<h3>✨ 추천할 만한 항목</h3><p class="note">검색대상을 넉넉히 모은 뒤 하나의 확정된 대상(Entity)에서 설명과 대표사진을 함께 가져옵니다. 특정 후보용 예외 규칙은 사용하지 않습니다.</p><div class="candidate-legend">🪄 좋은 후보를 찾고 있어요…</div><div class="candidate-chips"></div><div class="candidate-preview"></div>`;
+ wrap.innerHTML=`<h3>✨ </h3><p class="note">검색대상을 넉넉히 모은 뒤 하나의 확정된 대상(Entity)에서 설명과 대표사진을 함께 가져옵니다. 특정 후보용 예외 규칙은 사용하지 않습니다.</p><div class="candidate-legend">🪄 좋은 후보를 찾고 있어요…</div><div class="candidate-chips"></div><div class="candidate-preview"></div>`;
  host.parentElement.appendChild(wrap);const chips=wrap.querySelector('.candidate-chips'),legend=wrap.querySelector('.candidate-legend'),pv=wrap.querySelector('.candidate-preview');
  let passed=0,checked=0;const seen=new Set();
  // 4개씩 병렬 검사: 한 자료원이 느리거나 실패해도 다른 후보 검사는 계속된다.
@@ -1068,7 +1091,7 @@ async function renderSection(s){
  const el=document.getElementById(s+'List'); el.parentElement.querySelectorAll('.candidate-box').forEach(x=>x.remove());
  // 요술방망이 엔진 2는 사전등록 기본카드 없이 아이가 추가한 카드만 표시합니다.
  const merged=[...getCustom(s)]; const arr=[]; for(const x of merged){if(!hasIdentity(x.name,arr))arr.push(x)}
- el.innerHTML=''; const deletedNamesEl=document.getElementById(s+'DeletedNames'); if(deletedNamesEl){const ds=getDeletedBase(s).filter(n=>!hasIdentity(n,arr));deletedNamesEl.innerHTML=ds.length?`<b>↩ 전에 삭제한 항목</b> · `+ds.map(n=>`<button class="candidate-chip deleted-retry" data-name="${esc(n)}">${esc(n)}</button>`).join(' '):'';deletedNamesEl.querySelectorAll?.('.deleted-retry').forEach(b=>b.onclick=()=>addItem(s,b.dataset.name));}
+ el.innerHTML=''; const deletedNamesEl=document.getElementById(s+'DeletedNames'); if(deletedNamesEl) deletedNamesEl.innerHTML='';
  for(const x of arr){
    const isManual=x.source==='manual'; let desc=localStorage.getItem(editKey(s,x.id))??x.desc;
    const card=document.createElement('article');card.className='item'+(isManual?' minecard':'');
@@ -1087,7 +1110,7 @@ async function renderSection(s){
    };
    el.appendChild(card);
  }
- await renderCandidates(s,el);
+ el.parentElement.querySelectorAll('.candidate-box').forEach(x=>x.remove());
 }
 async function lookupDescription(name,country,section){
  const c=countries[country]; const queries=[name+' '+c.name,name];
@@ -1142,6 +1165,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.se
 <script>
 const COUNTRY_OVERVIEWS={
 ES:{
+ fruit:['🍊 과일','스페인은 햇빛이 풍부하고 따뜻한 지역이 많아 과일 재배가 활발합니다. 지중해 연안에서는 오렌지와 레몬 같은 감귤류가 많이 자라고, 포도는 오랜 농업과 식문화에서 중요한 과일입니다. 무화과와 복숭아도 여러 지역에서 재배됩니다. 과일을 살펴보면 스페인의 따뜻한 기후와 지역별 농업의 특징을 함께 이해할 수 있습니다.','오렌지 · 포도 · 레몬 · 무화과 · 복숭아'],
  food:['🍽️ 음식과 식생활','스페인은 지역마다 기후와 생산물이 달라 음식문화도 매우 다양합니다. 지중해 연안에서는 올리브유, 채소, 쌀, 생선과 해산물을 많이 이용하고, 내륙에서는 육류와 콩을 활용한 음식도 발달했습니다. 발렌시아의 파에야, 안달루시아의 가스파초처럼 지역을 대표하는 음식이 많으며, 하몬과 토르티야 에스파뇰라도 널리 알려져 있습니다. 여러 음식을 조금씩 나누어 먹는 타파스 문화도 스페인의 식생활을 이해하는 중요한 특징입니다.','파에야 · 하몬 이베리코 · 토르티야 에스파뇰라 · 가스파초 · 추로스 · 파타타스 브라바스 · 감바스 알 아히요 · 풀포 아 라 가예가 · 크로케타 · 판 콘 토마테'],
  animals:['🐾🌿 동물과 식물','스페인은 지중해와 대서양에 접하고 산악지대, 건조한 고원, 숲과 습지, 긴 해안을 함께 가지고 있어 다양한 동식물이 살아갑니다. 이베리아스라소니와 스페인아이벡스처럼 이베리아반도를 대표하는 동물이 있으며, 올리브나무와 코르크참나무, 홀름참나무, 라벤더 등 지중해성 기후와 사람들의 생활에 깊이 연결된 식물도 많습니다.','동물 — 이베리아스라소니 · 이베리아늑대 · 스페인아이벡스 · 불곰 · 큰홍학 · 스페인제국수리 / 식물 — 올리브나무 · 코르크참나무 · 홀름참나무 · 라벤더'],
  places:['🏛️ 전국의 명소','스페인의 명소를 살펴보면 여러 시대와 지역의 역사를 한눈에 만날 수 있습니다. 그라나다의 알람브라 궁전에는 이슬람 문화의 흔적이 남아 있고, 바르셀로나에는 가우디의 독특한 건축물이 있습니다. 마드리드의 미술관과 왕궁, 세비야와 코르도바의 성당과 옛 건축물, 산티아고 데 콤포스텔라의 순례길처럼 지역마다 서로 다른 이야기를 품고 있습니다.','사그라다 파밀리아 · 알람브라 궁전 · 구엘 공원 · 프라도 미술관 · 마드리드 왕궁 · 세비야 대성당 · 코르도바 메스키타 · 산티아고 데 콤포스텔라 대성당'],
@@ -1152,6 +1176,7 @@ ES:{
  art:['🎨 예술작품','스페인은 벨라스케스, 고야, 피카소, 달리 등 세계 미술사에서 중요한 예술가들을 배출했습니다. 왕실과 일상을 그린 고전 회화에서 전쟁의 비극을 표현한 작품, 20세기의 새로운 표현 방식까지 시대에 따라 매우 다른 작품을 만날 수 있습니다. 여기서는 예술가가 아니라 작품 자체를 중심으로 살펴봅니다.','《시녀들》 · 《1808년 5월 3일》 · 《게르니카》 · 《기억의 지속》 · 《옷을 입은 마하》 · 《옷을 벗은 마하》 · 《아비뇽의 처녀들》']
 },
 JP:{
+ fruit:['🍎 과일','일본은 남북으로 길고 계절 변화가 뚜렷해 지역마다 다양한 과일이 자랍니다. 따뜻한 지역에서는 귤이 많이 재배되고, 서늘한 지역에서는 사과가 유명합니다. 감·포도·복숭아·배처럼 익숙한 과일이 많고 지역마다 특색 있는 품종이 발달했습니다.','귤 · 사과 · 감 · 포도 · 복숭아 · 배'],
  food:['🍱 음식과 식생활','일본 음식은 쌀을 중심으로 생선과 해산물, 채소, 콩으로 만든 식품을 다양하게 이용합니다. 재료의 계절감과 본래의 맛, 보기 좋은 담음새를 중요하게 여기며 지역마다 특색 있는 향토음식도 많습니다. 초밥과 라멘처럼 세계적으로 알려진 음식뿐 아니라 우동, 소바, 덴푸라, 된장국처럼 일상에서 친숙한 음식도 다양합니다.','초밥 · 라멘 · 덴푸라 · 우동 · 소바 · 오코노미야키 · 다코야키 · 돈카쓰 · 스키야키 · 샤부샤부 · 오니기리 · 미소시루'],
  animals:['🐒🌸 동물과 식물','일본은 남북으로 길고 산지가 많아 아열대에서 냉대까지 다양한 자연환경이 나타납니다. 섬으로 이루어진 지리적 특징 때문에 일본원숭이와 일본산양처럼 일본에서 잘 알려진 동물이 있으며, 벚나무와 단풍나무, 삼나무와 대나무 등은 자연뿐 아니라 일본의 생활과 문화에도 깊이 연결되어 있습니다.','동물 — 일본원숭이 · 일본사슴 · 두루미 · 일본산양 · 너구리 / 식물 — 벚나무 · 단풍나무 · 일본삼나무 · 대나무 · 소나무 · 매화'],
  places:['🏯 전국의 명소','일본의 명소에는 오래된 신사와 사찰, 성과 전통 거리, 현대적인 대도시와 아름다운 자연이 함께 있습니다. 교토와 나라에서는 오랜 역사와 불교문화를 만날 수 있고, 도쿄에서는 현대적인 도시의 모습을 볼 수 있습니다. 후지산과 미야지마처럼 자연과 신앙, 풍경이 어우러진 장소도 일본을 대표합니다.','후지산 · 후시미 이나리 신사 · 기요미즈데라 · 금각사 · 도다이지 · 히메지성 · 도쿄 스카이트리 · 이쓰쿠시마 신사'],
@@ -1162,6 +1187,7 @@ JP:{
  art:['🎨 예술작품','일본 미술에는 두루마리 그림과 병풍, 우키요에, 근현대 회화와 조각 등 다양한 작품이 있습니다. 특히 에도 시대의 우키요에는 사람들의 생활과 풍경을 생생하게 표현했으며 유럽의 인상주의를 비롯한 서양 미술에도 영향을 주었습니다. 작품의 이름과 작가를 함께 살펴보면 일본 미술의 특징을 더 쉽게 이해할 수 있습니다.','《가나가와 해변의 높은 파도 아래》 · 《후가쿠 36경》 · 《도카이도 53차》 · 《미카에리 비진즈》 · 《홍백매도병풍》']
 },
 US:{
+ fruit:['🫐 과일','미국은 국토가 넓고 기후가 다양해 여러 종류의 과일을 재배합니다. 지역에 따라 사과·오렌지·포도뿐 아니라 블루베리·크랜베리·딸기 같은 베리류도 많이 생산됩니다. 다양한 기후 덕분에 여러 과일의 주요 생산지를 한 나라 안에서 만날 수 있습니다.','사과 · 오렌지 · 포도 · 블루베리 · 크랜베리 · 딸기'],
  food:['🍔 음식과 식생활','미국의 음식문화는 넓은 국토와 여러 지역의 전통, 세계 각지에서 온 이민자들의 음식문화가 만나 매우 다양하게 발전했습니다. 햄버거와 핫도그처럼 널리 알려진 음식 외에도 남부의 바비큐, 뉴잉글랜드의 해산물 요리, 루이지애나의 케이준·크리올 음식처럼 지역색이 뚜렷합니다. 여러 문화가 서로 영향을 주며 새로운 음식이 만들어지는 것도 큰 특징입니다.','햄버거 · 핫도그 · 바비큐 · 프라이드치킨 · 애플파이 · 클램차우더 · 버펄로윙 · 마카로니 앤 치즈 · 팬케이크 · 뉴욕 스타일 피자'],
  animals:['🦅🌲 동물과 식물','미국은 매우 넓은 국토에 산맥과 대평원, 사막, 습지, 온대림과 아열대 지역까지 다양한 자연환경이 있습니다. 아메리카들소와 흰머리수리처럼 나라를 상징하는 동물이 있고, 거대한 세쿼이아와 레드우드, 사막의 사와로선인장처럼 특정 지역의 풍경을 대표하는 식물도 많습니다.','동물 — 아메리카들소 · 흰머리수리 · 아메리카흑곰 · 아메리카악어 · 무스 · 프롱혼 / 식물 — 자이언트세쿼이아 · 레드우드 · 사와로선인장 · 슈거메이플 · 조슈아트리'],
  places:['🗽 전국의 명소','미국의 명소에는 대도시를 상징하는 건축물과 나라의 역사를 보여 주는 기념물, 광대한 자연경관이 함께 있습니다. 뉴욕의 자유의 여신상, 워싱턴 D.C.의 기념물과 정부 건물, 서부의 그랜드캐니언과 옐로스톤, 요세미티 같은 국립공원은 미국의 역사와 자연을 서로 다른 모습으로 보여 줍니다.','자유의 여신상 · 그랜드캐니언 · 옐로스톤 국립공원 · 골든게이트교 · 백악관 · 링컨 기념관 · 요세미티 국립공원 · 타임스스퀘어'],
@@ -1212,7 +1238,7 @@ US:{
 function renderCountryOverviews(){
  document.querySelectorAll('.sectionOverview').forEach(e=>e.remove());
  const data=COUNTRY_OVERVIEWS[COUNTRY]; if(!data)return;
- const map={food:'food',animals:'animals',places:'places',culture:'culture',singers:'singers',athletes:'athletes',people:'people',art:'art'};
+ const map={food:'food',fruit:'fruit',animals:'animals',places:'places',culture:'culture',singers:'singers',athletes:'athletes',people:'people',art:'art'};
  for(const [key,id] of Object.entries(map)){
    const sec=document.getElementById(id), d=data[key]; if(!sec||!d)continue;
    const p=sec.querySelector(':scope > p');
@@ -1249,5 +1275,238 @@ function classifyRepresentativeNames(names,suggestedCategory){
 window.classifyRepresentativeName=classifyRepresentativeName;
 window.classifyRepresentativeNames=classifyRepresentativeNames;
 
+
+// === FRUIT OVERVIEW NATIVE DISPLAY V4 ===
+const FRUIT_OVERVIEW_V4={ES:{intro:'스페인은 햇빛이 풍부하고 따뜻한 지역이 많아 과일 재배가 활발합니다. 지중해 연안에서는 오렌지와 레몬 같은 감귤류가 많이 자라고, 포도는 오랜 농업과 식문화에서 중요한 과일입니다. 무화과와 복숭아도 여러 지역에서 재배됩니다. 과일을 살펴보면 스페인의 따뜻한 기후와 지역별 농업의 특징을 함께 이해할 수 있습니다.',names:'오렌지 · 포도 · 레몬 · 무화과 · 복숭아'},JP:{intro:'일본은 남북으로 길고 계절 변화가 뚜렷해 지역마다 다양한 과일이 자랍니다. 따뜻한 지역에서는 귤이 많이 재배되고, 서늘한 지역에서는 사과가 유명합니다. 감·포도·복숭아·배처럼 우리에게도 익숙한 과일이 많고 지역마다 특색 있는 품종이 발달했습니다.',names:'귤 · 사과 · 감 · 포도 · 복숭아 · 배'},US:{intro:'미국은 국토가 넓고 기후가 다양해 여러 종류의 과일을 재배합니다. 지역에 따라 사과·오렌지·포도뿐 아니라 블루베리·크랜베리·딸기 같은 베리류도 많이 생산됩니다. 다양한 기후 덕분에 여러 과일의 주요 생산지를 한 나라 안에서 만날 수 있습니다.',names:'사과 · 오렌지 · 포도 · 블루베리 · 크랜베리 · 딸기'}};
+function renderFruitOverviewV4_DISABLED(){}
+
+
+const __v4OpenCountry=openCountry;
+openCountry=function(code){const r=__v4OpenCountry(code);setTimeout(renderCountryOverviews,20);return r;};
+
+
+
+
+async function v3_J(u){
+ let c=new AbortController(),tm=setTimeout(()=>c.abort(),4500);
+ try{let r=await fetch(u,{signal:c.signal});if(!r.ok)throw Error(r.status);return await r.json()}
+ finally{clearTimeout(tm)}
+}
+const v3_KIND_KO={food:'음식',fruit:'과일',animal:'동물',plant:'식물',place:'장소',culture:'문화',person:'인물',art:'예술작품'};
+const v3_ALIAS={
+ '하몽 이베리코':['하몬 이베리코','jamón ibérico','jamon iberico'],
+ '스페인아이벡스':['스페인 아이벡스','Spanish ibex'],
+ '스페인제국수리':['스페인 제국수리','Spanish imperial eagle'],
+ '올리브나무':['올리브 나무','olive tree','Olea europaea'],
+ '코르크참나무':['코르크 참나무','cork oak','Quercus suber'],
+ '오렌지나무':['오렌지 나무','orange tree','Citrus sinensis'],
+ '포도나무':['포도 나무','grapevine','Vitis vinifera'],
+ '라벤더':['lavender','Lavandula'],
+ '크로케타':['크로켓','croqueta','croquette'],
+ '추로스':['추로','churros','churro'],
+ '파에야':['paella']
+};
+function v3_aliases(q){return [...new Set([q,...(v3_ALIAS[q]||[])])]}
+const v3_WORDS={
+ fruit:{yes:['과일','열매','fruit','berry','citrus','grape','apple','orange','lemon','fig','peach'],no:['소설','영화','작품','novel','film','artwork']},
+ food:{yes:['음식','요리','식품','햄','빵','수프','튀김','dish','food','cuisine','ham','bread','soup','croquette'],no:['스포츠','운동','선수','기술','sport','athlete','gymnastics','move']},
+ animal:{yes:['동물','새','조류','포유류','독수리','수리','늑대','곰','스라소니','아이벡스','animal','bird','mammal','eagle','wolf','bear','lynx','ibex','taxon','species'],no:['제국','왕국','국가','empire','kingdom','state']},
+ plant:{yes:['식물','나무','참나무','포도나무','관목','plant','tree','oak','vine','grapevine','taxon','species'],no:['소설','문학','시','원숭이','novel','literature','poem','monkey']},
+ place:{yes:['건축','장소','성당','궁전','공원','박물관','산','building','place','cathedral','palace','park','museum','mountain'],no:['음식','food']},
+ culture:{yes:['문화','전통','축제','춤','음악','culture','tradition','festival','dance','music'],no:['식물','동물','plant','animal']},
+ person:{yes:['인물','사람','가수','선수','작가','왕','human','person','singer','athlete','writer','king'],no:['작품','영화','책','artwork','film','book']},
+ art:{yes:['작품','회화','그림','미술','painting','artwork','sculpture'],no:['화가','작가','사람','painter','artist','person']}
+};
+function v3_evidence(k,s){s=(s||'').toLowerCase();let w=v3_WORDS[k],yes=0,no=0;for(let x of w.yes)if(s.includes(x))yes++;for(let x of w.no)if(s.includes(x))no++;return{yes,no}}
+function v3_norm(s){return String(s||'').toLowerCase().replace(/[《》〈〉「」『』"'’‘·.,()\[\]\s_-]/g,'')}
+function v3_nameScore(a,b){a=v3_norm(a);b=v3_norm(b);if(!a||!b)return 0;if(a===b)return 100;if(a.includes(b)||b.includes(a))return 65;return 0}
+async function v3_wikiSearch(lang,q){
+ let u=`https://${lang}.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(q)}&gsrlimit=15&prop=extracts|pageimages|pageprops&exintro=1&explaintext=1&piprop=thumbnail|original&pithumbsize=1200&redirects=1&format=json&origin=*`;
+ try{return Object.values((await v3_J(u)).query?.pages||{})}catch(e){return[]}
+}
+async function v3_wd(ids){
+ if(!ids.length)return{};
+ let u='https://www.wikidata.org/w/api.php?action=wbgetentities&ids='+encodeURIComponent([...new Set(ids)].join('|'))+'&props=labels|descriptions|claims|sitelinks&languages=ko|en&format=json&origin=*';
+ try{return(await v3_J(u)).entities||{}}catch(e){return{}}
+}
+function v3_claim(e,p){return(e?.claims?.[p]||[]).map(x=>x?.mainsnak?.datavalue?.value).filter(Boolean)}
+async function v3_typeText(e){
+ let ids=[...v3_claim(e,'P31'),...v3_claim(e,'P279')].map(x=>x?.id).filter(Boolean).slice(0,20),es=await v3_wd(ids);
+ return Object.values(es).map(x=>[x.labels?.ko?.value,x.labels?.en?.value,x.descriptions?.ko?.value,x.descriptions?.en?.value].filter(Boolean).join(' ')).join(' ');
+}
+async function v3_findSubject(q,k){
+ let names=v3_aliases(q), candidates=[];
+ // Fast path: at most two Wikipedia searches total.
+ for(let lang of ['ko','en']){
+   let searchName=lang==='ko'?names[0]:(names.find(x=>/[A-Za-z]/.test(x))||names[0]);
+   let pages=await v3_wikiSearch(lang,searchName+' '+(lang==='ko'?v3_KIND_KO[k]:({food:'food',fruit:'fruit',animal:'animal',plant:'plant',place:'place',culture:'culture',person:'person',art:'artwork'}[k])));
+   for(let i=0;i<Math.min(pages.length,8);i++){
+     let p=pages[i];
+     let n=Math.max(...names.map(x=>v3_nameScore(x,p.title)));
+     // Exact/near name match is mandatory. Never drift to another named object.
+     if(n<65)continue;
+     let ev=v3_evidence(k,(p.title||'')+' '+(p.extract||''));
+     if(ev.no)continue;
+     candidates.push({p,lang,score:n+ev.yes*12+(8-i)});
+   }
+ }
+ candidates.sort((a,b)=>b.score-a.score);
+ for(let c of candidates.slice(0,3)){
+   let qid=c.p.pageprops?.wikibase_item;
+   if(!qid)continue;
+   let e=(await v3_wd([qid]))[qid];
+   if(!e)continue;
+   // One cheap entity v3_description check; no recursive P31/P279 traversal.
+   let ev=v3_evidence(k,[e.descriptions?.ko?.value,e.descriptions?.en?.value,c.p.extract].filter(Boolean).join(' '));
+   if(ev.no)continue;
+   return {e,p:c.p,lang:c.lang};
+ }
+ return null;
+}
+async function v3_page(lang,title){
+ if(!title)return null;
+ let u=`https://${lang}.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(title)}&prop=extracts|pageimages&exintro=1&explaintext=1&piprop=thumbnail|original&pithumbsize=1200&redirects=1&format=json&origin=*`;
+ try{return Object.values((await v3_J(u)).query?.pages||{})[0]}catch(e){return null}
+}
+function v3_description(q,e,ko,en){
+ let s=(ko?.extract||'').replace(/\[[^\]]+\]/g,' ').replace(/\s+/g,' ').trim();
+ if(s.length>=50){
+   let parts=s.split(/(?<=[.!?。！？])\s+/).slice(0,4);
+   let out=parts.join(' ');
+   return out.length>620?out.slice(0,617)+'…':out;
+ }
+ let d=e.descriptions?.ko?.value||'';
+ if(s && d)return (s+' '+q+'은(는) '+d+'입니다.').slice(0,620);
+ if(d)return `${q}은(는) ${d}입니다.`;
+ return `${q}의 대상은 확인했지만 충분한 한국어 설명을 찾지 못했습니다.`;
+}
+function v3_badPhoto(u,k){
+ let s=decodeURIComponent(u||'').toLowerCase(),bad=['map','range','distribution','diagram','chart','logo','flag','icon','painting','drawing','herbarium','essential_oil'];
+ return bad.some(x=>s.includes(x));
+}
+async function v3_commons(q,k){
+ let u='https://v3_commons.wikimedia.org/w/api.php?action=query&generator=search&gsrnamespace=6&gsrsearch='+encodeURIComponent(q)+'&gsrlimit=25&prop=imageinfo&iiprop=url&iiurlwidth=1200&format=json&origin=*';
+ try{return Object.values((await v3_J(u)).query?.pages||{}).map(x=>x.imageinfo?.[0]?.thumburl||x.imageinfo?.[0]?.url).filter(x=>x&&!v3_badPhoto(x,k))}catch(e){return[]}
+}
+async function v3_fileUrl(name){
+ if(!name)return'';
+ try{let j=await v3_J('https://v3_commons.wikimedia.org/w/api.php?action=query&titles=File:'+encodeURIComponent(name)+'&prop=imageinfo&iiprop=url&iiurlwidth=1200&format=json&origin=*');let p=Object.values(j.query?.pages||{})[0];return p?.imageinfo?.[0]?.thumburl||p?.imageinfo?.[0]?.url||''}catch(e){return''}
+}
+async function v3_photos(q,k,e,ko,en){
+ let a=[];
+ for(let u of [ko?.thumbnail?.source,ko?.original?.source,en?.thumbnail?.source,en?.original?.source].filter(Boolean))
+   if(!v3_badPhoto(u,k))a.push(u);
+ let p18=v3_claim(e,'P18')[0];
+ if(p18){let u=await v3_fileUrl(p18);if(u&&!v3_badPhoto(u,k))a.push(u)}
+ let enName=e.labels?.en?.value||v3_aliases(q).find(x=>/[A-Za-z]/.test(x))||q;
+ a.push(...await v3_commons(enName,k));
+ return [...new Set(a)].slice(0,5);
+}
+
+function v3KindForSection(section,name){
+ if(section==='food')return 'food';
+ if(section==='fruit')return 'fruit';
+ if(section==='animals'){
+   return ['나무','라벤더','대나무','소나무','삼나무','세쿼이아','레드우드','선인장','메이플','매화'].some(x=>String(name).includes(x))?'plant':'animal';
+ }
+ if(section==='places')return 'place';
+ if(section==='culture')return 'culture';
+ if(section==='singers'||section==='athletes'||section==='people')return 'person';
+ if(section==='art')return 'art';
+ return 'culture';
+}
+async function v3ResolveRepresentative(section,q){
+ const k=v3KindForSection(section,q);
+ const s=await v3_findSubject(q,k); if(!s)return null;
+ const e=s.e;
+ let ko=await v3_page('ko',e.sitelinks?.kowiki?.title), en=await v3_page('en',e.sitelinks?.enwiki?.title);
+ if(!ko&&s.lang==='ko')ko=s.p;if(!en&&s.lang==='en')en=s.p;
+ const chosen=e.labels?.ko?.value||e.labels?.en?.value||s.p.title||'';
+ if(Math.max(...v3_aliases(q).map(x=>v3_nameScore(x,chosen)),...v3_aliases(q).map(x=>v3_nameScore(x,s.p.title)))<65)return null;
+ const desc=v3_description(q,e,ko,en), pics=await v3_photos(q,k,e,ko,en);
+ if(!desc||!pics.length)return null;
+ return {name:q,title:chosen,entityId:e.id||'',desc,photo:pics[0],photos:pics,sources:['V3']};
+}
+
+// === REPRESENTATIVE NAME -> CARD PROCESS V5 : availability first ===
+const REP_SECTIONS=['food','fruit','animals','places','culture','singers','athletes','people','art'];
+const repAvailabilityCache=new Map();
+
+function repTextFor(section){
+ const ov=(typeof COUNTRY_OVERVIEWS!=='undefined' && COUNTRY_OVERVIEWS[COUNTRY] && COUNTRY_OVERVIEWS[COUNTRY][section]);
+ if(!ov)return '';
+ if(Array.isArray(ov)) return ov[2]||'';
+ return ov.names||'';
+}
+function parseRepNames(text){
+ return String(text||'')
+   .replace(/동물\s*[—-]/g,'').replace(/식물\s*[—-]/g,'·')
+   .split(/[·\/]/).map(x=>x.trim())
+   .map(x=>x.replace(/\s*[—-]\s*(테니스|축구|농구|야구|수영|체조|피겨스케이팅|자동차 경주).*$/,'').trim())
+   .filter(Boolean);
+}
+async function precheckRepresentative(section,name){
+ const key=[COUNTRY,section,name].join('|');
+ if(repAvailabilityCache.has(key)) return repAvailabilityCache.get(key);
+ let verified=null;
+ try{verified=await v3ResolveRepresentative(section,name)}catch(e){}
+ const result=verified&&verified.photo&&verified.desc?{ok:true,verified}:{ok:false,verified:null};
+ repAvailabilityCache.set(key,result);return result;
+}
+function openRepresentativePreview(section,name,verified,panel){
+ let pv=panel.querySelector('.rep-preview-v5');
+ if(!pv){pv=document.createElement('div');pv.className='rep-preview-v5';panel.appendChild(pv);}
+ // Reuse the verified snapshot; do not search a second time.
+ const photoChoices=(verified.photos||[verified.photo]).slice(0,5);
+ pv.innerHTML=`<div class="preview-card"><h3>${esc(name)}</h3><p>${esc(verified.desc)}</p><div class="v3-photo-choices">${photoChoices.map((u,i)=>`<label><input type="radio" name="v3photo" value="${esc(u)}" ${i===0?'checked':''}><img src="${esc(u)}" alt=""></label>`).join('')}</div><div class="preview-actions"><button class="rep-save-v5">⭐ 선택한 사진으로 카드 만들기</button><button class="rep-close-v5">닫기</button></div></div>`;
+ pv.querySelector('.rep-close-v5').onclick=()=>pv.innerHTML='';
+ pv.querySelector('.rep-save-v5').onclick=async()=>{
+   const a=getCustom(section);
+   if(hasIdentity(name,a)){alert('이미 같은 항목이 있습니다.');return;}
+   const item={id:newItemId(),name,desc:String(verified.desc||'').trim(),emoji:'⭐',source:'recommended',
+     photoVerified:true,photoRemote:String(pv.querySelector('input[name="v3photo"]:checked')?.value||verified.photo||''),entityId:String(verified.entityId||''),
+     entityTitle:String(verified.title||''),pageId:verified.pageId==null?'':String(verified.pageId),
+     sources:Array.isArray(verified.sources)?verified.sources.map(String):[]};
+   setCustom(section,[...a,item]); await renderSection(section);
+   pv.innerHTML=''; renderRepresentativeCardButtonsV5(section);
+ };
+}
+function manualRepresentative(section,name){
+ addItem(section,name);
+}
+async function renderRepresentativeCardButtonsV5(section){
+ const sec=document.getElementById(section); if(!sec)return;
+ let panel=sec.querySelector('.rep-card-panel-v5');
+ if(!panel){panel=document.createElement('div');panel.className='rep-card-panel-v5 note';sec.appendChild(panel);}
+ const names=parseRepNames(repTextFor(section));
+ panel.innerHTML='<div class="rep-title-v5">⭐ 대표 이름으로 카드 만들기</div>'+
+ '<div class="rep-status-v5">대표 이름을 확인하고 있습니다. 카드로 만들 수 있는 이름부터 앞에 배치합니다.</div>'+
+ '<div class="rep-card-buttons-v5"></div><div class="rep-preview-v5"></div>';
+ const holder=panel.querySelector('.rep-card-buttons-v5'), status=panel.querySelector('.rep-status-v5');
+ // Lightweight concurrent check, then sort available first while preserving original order within groups.
+ const checks=await Promise.all(names.map(async(name,i)=>({name,i,...await precheckRepresentative(section,name)})));
+ if(!panel.isConnected)return;
+ checks.sort((a,b)=>(b.ok-a.ok)||(a.i-b.i));
+ for(const x of checks){
+   const b=document.createElement('button');
+   b.type='button'; b.textContent=x.name;
+   b.className='rep-card-btn-v5 '+(x.ok?'can-make':'cannot-make');
+   b.title=x.ok?'설명과 사진을 확인했습니다. 눌러서 카드를 만드세요.':'자동 카드 만들기는 아직 어렵습니다. 눌러서 직접 만들 수 있습니다.';
+   b.onclick=()=>x.ok?openRepresentativePreview(section,x.name,x.verified,panel):manualRepresentative(section,x.name);
+   holder.appendChild(b);
+ }
+ const good=checks.filter(x=>x.ok).length;
+ status.textContent=`✓ 카드 만들기 가능 ${good}개 · 직접 만들기 ${checks.length-good}개`;
+}
+function renderAllRepresentativeCardButtonsV5(){
+ REP_SECTIONS.forEach(s=>renderRepresentativeCardButtonsV5(s));
+}
+const __v5OpenCountry=openCountry;
+openCountry=function(code){
+ repAvailabilityCache.clear();
+ const r=__v5OpenCountry(code);
+ setTimeout(()=>{renderCountryOverviews();renderAllRepresentativeCardButtonsV5()},60);
+ return r;
+};
 </script>
 </body></html>
