@@ -1317,7 +1317,7 @@ async function v8PhotoChoices(name,kind,subject,e,ko,en){
  if(e?.id)arr.push(...await v8CommonsSearch('haswbstatement:P180='+e.id,kind));
  // 마지막은 확정된 대상 이름으로만 사진 검색. 나라를 붙이지 않는다.
  arr.push(...await v8CommonsSearch(e?.labels?.en?.value||e?.labels?.ko?.value||name,kind));
- return [...new Set(arr)].slice(0,3);
+ return [...new Set(arr)].slice(0,5);
 }
 async function v8Build(name,s){
  let kind=v8Kind(s,name), subject=await v8FindSubject(name,kind);
@@ -1376,5 +1376,18 @@ openCountry=function(code){__v8OpenCountry(code);setTimeout(()=>V8_SECTIONS.forE
 const __v8RenderSection=renderSection;
 renderSection=function(s){__v8RenderSection(s);setTimeout(()=>v8RenderMaker(s),0)}
 
+
+/* V9.2 TEST-SCREEN RECOVERY
+   카드 엔진 시험판은 스페인 상세 백과 화면에서 바로 시작한다.
+   나라 목록/탐색 기능 자체는 삭제하지 않는다. */
+window.addEventListener('DOMContentLoaded',()=>{
+  setTimeout(()=>{
+    try{
+      if(document.getElementById('home') && !document.getElementById('home').classList.contains('hidden')){
+        openCountry('ES');
+      }
+    }catch(e){}
+  },120);
+});
 </script>
 </body></html>
