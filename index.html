@@ -972,7 +972,7 @@ const CANDIDATE_CHECK_CACHE=new Map();
 const CANDIDATE_TARGET=8;
 async function verifyCandidateTarget(section,target){
  const name=typeof target==='string'?target:target.name, source=typeof target==='string'?'discover':(target.source||'discover');
- const k='name-type-v5|'+section+'|'+normalizeItemName(name);
+ const k='simpleflow-v6|'+section+'|'+normalizeItemName(name);
  if(CANDIDATE_CHECK_CACHE.has(k))return CANDIDATE_CHECK_CACHE.get(k);
  const promise=(async()=>{
    const e=await resolveWikipediaEntity(name,COUNTRY,section,source);if(!e)return null;
@@ -1089,42 +1089,60 @@ async function wikiPage(site,title){
  const u='https://'+lang+'.wikipedia.org/w/api.php?action=query&prop=extracts|pageimages|pageprops&titles='+encodeURIComponent(title)+'&exintro=1&explaintext=1&piprop=thumbnail|original&pithumbsize=1000&format=json&origin=*';
  try{const j=await fetchJson(u);return Object.values(j.query?.pages||{})[0]||null}catch(e){return null}
 }
-async function entityViaWikiSearch(name,kind){
- for(const lang of ['ko','en']){
-  const u='https://'+lang+'.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch='+encodeURIComponent(name)+'&gsrlimit=15&prop=extracts|pageprops&exintro=1&explaintext=1&format=json&origin=*';
-  try{
-   const j=await fetchJson(u),pages=Object.values(j.query?.pages||{});
-   for(const pg of pages){
-    if(!identityScore(name,pg.title||''))continue;
-    // fallback에서도 종류 증거가 실제로 있어야 한다. 이름만 같다고 통과시키지 않는다.
-    if(simpleTypeScore(kind,(pg.title||'')+' '+(pg.extract||''))<=0)continue;
-    const q=pg.pageprops?.wikibase_item;if(q){const es=await wdEntities([q]);if(es[q])return es[q]}
-   }
-  }catch(e){}
- }
- return null;
+
+async function wikiNameSearch(name,lang){
+ const u='https://'+lang+'.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch='+encodeURIComponent(name)+'&gsrlimit=12&prop=extracts|pageimages|pageprops&exintro=1&explaintext=1&piprop=thumbnail|original&pithumbsize=1000&format=json&origin=*';
+ try{return Object.values((await fetchJson(u)).query?.pages||{})}catch(e){return []}
+}
+function titleMatchScore(name,title){
+ const a=normalizeItemName(name),b=normalizeItemName(title);
+ if(!a||!b)return 0;
+ if(a===b)return 100;
+ if(b.includes(a)||a.includes(b))return 70;
+ return identityScore(name,title)?50:0;
 }
 async function chooseEntity(name,kind){
- // 이름 자체만 검색한다. 나라/카테고리 검색어를 다시 만들지 않는다.
- let hits=[];
- for(const lang of ['ko','en']){try{hits.push(...await wdSearchSimple(name,lang))}catch(e){}}
- const ids=[...new Set(hits.map(x=>x.id))].slice(0,35), es=await wdEntities(ids);
- let ranked=[];
- for(const e of Object.values(es)){
-  const labels=[e.labels?.ko?.value,e.labels?.en?.value,e.labels?.es?.value,e.labels?.ja?.value].filter(Boolean);
-  const ident=Math.max(0,...labels.map(x=>identityScore(name,x)));
-  if(!ident)continue;
-  const tt=await typeText(e), corpus=labels.join(' ')+' '+(e.descriptions?.ko?.value||'')+' '+(e.descriptions?.en?.value||'')+' '+tt;
-  const ts=simpleTypeScore(kind,corpus);
-  // V5: 나라와의 관련성은 이미 대표 이름 선정 단계에서 끝났다.
-  // 카드 엔진은 오직 '이름이 맞는가 + 종류가 맞는가'만 확인한다.
-  if(ts<=0)continue;
-  ranked.push({e,score:ident*20+ts});
+ // V6 SIMPLE FLOW:
+ // 1. 이름으로 Wikipedia 문서 검색
+ // 2. 제목/첫 설명이 이름과 맞는 문서 선택
+ // 3. 그 문서에 연결된 Wikidata Entity의 '종류'만 확인
+ // 나라, 국가점수, 복수 검색문, 관계점수는 사용하지 않는다.
+ let pool=[];
+ for(const lang of ['ko','en']){
+   const pages=await wikiNameSearch(name,lang);
+   for(const pg of pages){
+     const tm=titleMatchScore(name,pg.title||'');
+     if(!tm)continue;
+     const qid=pg.pageprops?.wikibase_item;
+     if(!qid)continue;
+     const es=await wdEntities([qid]),e=es[qid];
+     if(!e)continue;
+     const tt=await typeText(e);
+     const corpus=(pg.title||'')+' '+(pg.extract||'')+' '+(e.descriptions?.ko?.value||'')+' '+(e.descriptions?.en?.value||'')+' '+tt;
+     const ts=simpleTypeScore(kind,corpus);
+     if(ts<=0)continue;
+     pool.push({e,pg,lang,score:tm+ts});
+   }
  }
- ranked.sort((a,b)=>b.score-a.score);
- if(ranked[0])return ranked[0].e;
- // 정확한 이름 검색이 실패했을 때만 Wikipedia 제목을 통해 Entity를 한 번 더 찾는다.
- return await entityViaWikiSearch(name,kind);
+ pool.sort((a,b)=>b.score-a.score);
+ if(pool[0])return pool[0];
+
+ // 한국어 이름의 표기가 Wikipedia 제목과 달라 못 찾은 경우에만
+ // Wikidata 이름/별칭 검색을 단 한 번 보조 경로로 사용한다.
+ let hits=[];
+ try{hits=await wdSearchSimple(name,'ko')}catch(e){}
+ if(!hits.length){try{hits=await wdSearchSimple(name,'en')}catch(e){}}
+ const ids=[...new Set(hits.map(x=>x.id))].slice(0,15), es=await wdEntities(ids);
+ for(const h of hits){
+   const e=es[h.id];if(!e)continue;
+   const labels=[e.labels?.ko?.value,e.labels?.en?.value,e.labels?.es?.value,e.labels?.ja?.value].filter(Boolean);
+   if(!Math.max(0,...labels.map(x=>identityScore(name,x))))continue;
+   const tt=await typeText(e);
+   const corpus=labels.join(' ')+' '+(e.descriptions?.ko?.value||'')+' '+(e.descriptions?.en?.value||'')+' '+tt;
+   if(simpleTypeScore(kind,corpus)<=0)continue;
+   return {e,pg:null,lang:'wikidata',score:20};
+ }
+ return null;
 }
 function badImage(url,kind){
  const s=decodeURIComponent(url||'').toLowerCase();
@@ -1181,38 +1199,42 @@ function koreanDesc(name,section,e,koPage,enPage){
  return `${name}은(는) ${label}에서 대표적으로 알아둘 대상입니다. 사진을 보며 생김새와 특징을 살펴보세요.`;
 }
 async function resolveRepresentativeCard(name,subjectId,section){
- // subjectId는 저장/UI 호환용일 뿐 검색 조건에는 사용하지 않는다.
+ // subjectId는 저장/UI 호환용. 카드 검색에는 사용하지 않는다.
  const kind=repKind(section,name);
- const e=await chooseEntity(name,kind);
- if(!e)return null;
+ const found=await chooseEntity(name,kind);
+ if(!found)return null;
+ const e=found.e;
 
- // Entity는 여기서 확정. 이후 설명/사진 단계에서는 다른 Entity로 갈아타지 않는다.
- const koPage=await wikiPage('kowiki',e.sitelinks?.kowiki?.title);
- const enPage=await wikiPage('enwiki',e.sitelinks?.enwiki?.title);
+ // 이미 선택한 Wikipedia 문서를 우선 사용하고, 같은 Entity의 한국어/영어 sitelink만 보완한다.
+ let koPage=(found.lang==='ko'&&found.pg)?found.pg:await wikiPage('kowiki',e.sitelinks?.kowiki?.title);
+ let enPage=(found.lang==='en'&&found.pg)?found.pg:await wikiPage('enwiki',e.sitelinks?.enwiki?.title);
  const desc=koreanDesc(name,section,e,koPage,enPage);
 
- // 사진: 같은 Entity의 문서사진 -> P18 -> depicts(P180) -> 마지막으로 확정 Entity의 표준 이름 검색
+ // 사진도 Entity를 바꾸지 않는다.
  let photo='';
  for(const u of [koPage?.thumbnail?.source,koPage?.original?.source,enPage?.thumbnail?.source,enPage?.original?.source].filter(Boolean)){
-  if(!badImage(u,kind)){photo=u;break}
+   if(!badImage(u,kind)){photo=u;break}
  }
  if(!photo){const p18=await commonsFile(claimString(e,'P18'));if(p18&&!badImage(p18,kind))photo=p18}
  if(!photo)photo=await depictsPhoto(e.id);
  if(!photo)photo=await commonsNamePhoto(e.labels?.en?.value||e.labels?.ko?.value||name,kind);
  if(!photo)return null;
 
- return {name,title:e.labels?.ko?.value||e.labels?.en?.value||name,entityId:e.id,pageId:koPage?.pageid||enPage?.pageid||'',desc,photo,score:100,sources:['Wikidata','Wikipedia','Wikimedia Commons']};
+ return {name,title:e.labels?.ko?.value||e.labels?.en?.value||name,entityId:e.id,
+   pageId:koPage?.pageid||enPage?.pageid||'',desc,photo,score:100,
+   sources:['Wikipedia','Wikidata','Wikimedia Commons']};
 }
+
 const REP_CHECK_CACHE=new Map();
 async function verifyRepresentative(section,name){
- const k='name-type-v5|'+section+'|'+normalizeItemName(name);
+ const k='simpleflow-v6|'+section+'|'+normalizeItemName(name);
  if(REP_CHECK_CACHE.has(k))return REP_CHECK_CACHE.get(k);
  const promise=resolveRepresentativeCard(name,COUNTRY,section);
  REP_CHECK_CACHE.set(k,promise); return promise;
 }
 async function previewRepresentative(s,name,box){
  const token=String(Date.now())+Math.random(); box.dataset.previewToken=token;
- box.innerHTML='<div class="preview-card">🔎 <b>'+esc(countries[COUNTRY].name)+' · '+esc(SECTION_LABEL[s])+'</b> 범위에서 「'+esc(name)+'」을 여러 경로로 찾고 있어요.<br><span class="note">나라 조건 없이 대표 이름 + 대상 종류만 확인한 뒤, 짧은 한국어 설명과 같은 대상의 실제 사진을 찾습니다.</span></div>';
+ box.innerHTML='<div class="preview-card">🔎 <b>「'+esc(name)+'」을 찾고 있어요.</b><br><span class="note">이름이 맞는지 → '+esc(SECTION_LABEL[s])+' 종류가 맞는지 → 사진과 짧은 설명을 확인합니다.</span></div>';
  const v=await verifyRepresentative(s,name);
  if(box.dataset.previewToken!==token)return;
  if(!v){
