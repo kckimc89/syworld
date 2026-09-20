@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>카드 검색엔진 시험기 V1</title>
+<title>카드 검색엔진 시험기 V2</title>
 <style>
 :root{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;color:#172033;background:#f5f7fb}
 *{box-sizing:border-box} body{margin:0;padding:18px}.wrap{max-width:900px;margin:auto}
@@ -18,11 +18,13 @@ button{background:#3056d3;color:#fff;border:0;font-weight:800;cursor:pointer}but
 .meta{font-size:13px;color:#667085}.photos{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:12px}
 .photo{border:2px solid transparent;border-radius:12px;overflow:hidden;background:#eee;position:relative}.photo img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover}.photo span{position:absolute;left:6px;top:6px;background:#fff;padding:2px 7px;border-radius:999px;font-weight:800}
 .warn{background:#fff7ed;color:#9a3412;padding:12px;border-radius:12px}
+.trace{margin:12px 0;padding:12px;border-radius:12px;background:#f8fafc;font-size:14px;line-height:1.65}
+.trace b{color:#344054}.ok{color:#067647}.no{color:#b42318}
 @media(max-width:700px){.row{grid-template-columns:1fr}.photos{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
 <body><div class="wrap">
-<h1>🪄 카드 검색엔진 시험기 V1</h1>
+<h1>🪄 카드 검색엔진 시험기 V2</h1>
 <div class="sub">백과사전과 완전히 분리된 시험기입니다. <b>나라 조건은 사용하지 않습니다.</b><br>
 대표 이름 → 종류 확인 → 한국어 설명 → 사진 후보 최대 5장만 시험합니다.</div>
 <div class="panel">
@@ -49,9 +51,9 @@ const $=s=>document.querySelector(s);
 const esc=s=>String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 async function J(u){let r=await fetch(u);if(!r.ok)throw Error(r.status);return r.json()}
 const WORDS={
- food:{yes:['음식','요리','식품','햄','빵','수프','튀김','dish','food','cuisine','ham','bread','soup','croquette'],no:['스포츠','운동','선수','기술','sport','athlete','gymnastics','move']},
- animal:{yes:['동물','새','조류','포유류','독수리','수리','늑대','곰','스라소니','아이벡스','animal','bird','mammal','eagle','wolf','bear','lynx','ibex','taxon','species'],no:['제국','왕국','국가','empire','kingdom','state']},
- plant:{yes:['식물','나무','참나무','포도나무','관목','plant','tree','oak','vine','grapevine','taxon','species'],no:['소설','문학','시','원숭이','novel','literature','poem','monkey']},
+ food:{yes:['음식','요리','식품','햄','빵','수프','튀김','크로켓','dish','food','cuisine','ham','bread','soup','croquette','pastry'],no:['스포츠','운동','선수','기술','sport','athlete','gymnastics','move','영화','film']},
+ animal:{yes:['동물','새','조류','포유류','독수리','수리','늑대','곰','스라소니','아이벡스','animal','bird','mammal','eagle','wolf','bear','lynx','ibex','taxon','species'],no:['제국','왕국','국가','역사','empire','kingdom','state','history','영화','film']},
+ plant:{yes:['식물','나무','참나무','포도나무','관목','속씨식물','plant','tree','oak','vine','grapevine','flowering plant','taxon','species','genus'],no:['소설','문학','시','원숭이','영화','작품','기름','오일','향유','novel','literature','poem','monkey','film','movie','artwork','oil','essential oil','extract']},
  place:{yes:['건축','장소','성당','궁전','공원','박물관','산','building','place','cathedral','palace','park','museum','mountain'],no:['음식','food']},
  culture:{yes:['문화','전통','축제','춤','음악','culture','tradition','festival','dance','music'],no:['식물','동물','plant','animal']},
  person:{yes:['인물','사람','가수','선수','작가','왕','human','person','singer','athlete','writer','king'],no:['작품','영화','책','artwork','film','book']},
@@ -74,34 +76,57 @@ async function typeText(e){
  let ids=[...claim(e,'P31'),...claim(e,'P279')].map(x=>x?.id).filter(Boolean).slice(0,20),es=await wd(ids);
  return Object.values(es).map(x=>[x.labels?.ko?.value,x.labels?.en?.value,x.descriptions?.ko?.value,x.descriptions?.en?.value].filter(Boolean).join(' ')).join(' ');
 }
+function queryVariants(q,k){
+ let a=[q];
+ if(k==='plant') a.push(q+' 식물',q+' 나무',q+' plant',q+' tree');
+ if(k==='animal') a.push(q+' 동물',q+' 새',q+' animal',q+' species');
+ if(k==='food') a.push(q+' 음식',q+' 요리',q+' food',q+' dish');
+ return [...new Set(a)];
+}
 async function findSubject(q,k){
- let cand=[];
- for(let lang of ['ko','en']){
-  let pages=await wikiSearch(lang,q);
-  for(let i=0;i<pages.length;i++){
-   let p=pages[i],qid=p.pageprops?.wikibase_item;if(!qid)continue;
-   let e=(await wd([qid]))[qid];if(!e)continue;
-   let tt=await typeText(e), st=evidence(k,tt), at=evidence(k,(p.title||'')+' '+(p.extract||'')+' '+(e.descriptions?.ko?.value||'')+' '+(e.descriptions?.en?.value||''));
-   if(st.no||at.no)continue;
-   if(st.yes<1 && at.yes<2)continue;
-   let ns=nameScore(q,p.title);
-   // 이름 일치가 약하면 종류 증거가 훨씬 강해야 한다.
-   if(!ns && st.yes<2 && at.yes<3)continue;
-   cand.push({e,p,lang,score:ns+st.yes*20+at.yes*4+(15-i)});
+ let cand=[], seen=new Set(), trace=[];
+ for(let qq of queryVariants(q,k)){
+  for(let lang of ['ko','en']){
+   let pages=await wikiSearch(lang,qq);
+   for(let i=0;i<pages.length;i++){
+    let p=pages[i],qid=p.pageprops?.wikibase_item;if(!qid||seen.has(lang+'|'+qid))continue;
+    seen.add(lang+'|'+qid);
+    let e=(await wd([qid]))[qid];if(!e)continue;
+    let tt=await typeText(e);
+    let blob=(p.title||'')+' '+(p.extract||'')+' '+(e.descriptions?.ko?.value||'')+' '+(e.descriptions?.en?.value||'');
+    let st=evidence(k,tt), at=evidence(k,blob), ns=nameScore(q,p.title);
+    let contradiction=st.no+at.no;
+    trace.push({title:p.title,qid,yes:st.yes+at.yes,no:contradiction,ns});
+    if(contradiction)continue;
+    // Strong structured type OR good article evidence is enough.
+    if(st.yes<1 && at.yes<1)continue;
+    // Allow aliases/translations to survive even when Korean display title differs.
+    let labelScore=Math.max(nameScore(q,e.labels?.ko?.value),nameScore(q,e.labels?.en?.value));
+    let score=Math.max(ns,labelScore)+st.yes*24+at.yes*6+(12-i)+(qq===q?8:0)+(lang==='ko'?4:0);
+    cand.push({e,p,lang,score,trace});
+   }
   }
  }
- cand.sort((a,b)=>b.score-a.score);return cand[0]||null;
+ cand.sort((a,b)=>b.score-a.score);
+ if(cand[0]){cand[0].trace=trace;return cand[0]}
+ return {failed:true,trace};
 }
 async function page(lang,title){
  if(!title)return null;
  let u=`https://${lang}.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(title)}&prop=extracts|pageimages&exintro=1&explaintext=1&piprop=thumbnail|original&pithumbsize=1200&redirects=1&format=json&origin=*`;
  try{return Object.values((await J(u)).query?.pages||{})[0]}catch(e){return null}
 }
-function description(q,e,ko){
+function description(q,e,ko,en){
  let s=(ko?.extract||'').replace(/\[[^\]]+\]/g,' ').replace(/\s+/g,' ').trim();
- if(s.length>=45){let a=s.split(/(?<=[.!?。！？])\s+/).slice(0,4).join(' ');return a.length>600?a.slice(0,597)+'…':a}
- let d=e.descriptions?.ko?.value;if(d)return `${q}은(는) ${d}입니다. 대표적인 특징과 모습을 사진과 함께 살펴볼 수 있어요.`;
- return `${q}의 정확한 대상은 확인했지만 충분한 한국어 설명은 찾지 못했습니다.`;
+ if(s.length>=90){
+   let a=s.split(/(?<=[.!?。！？])\s+/).slice(0,4).join(' ');
+   return a.length>650?a.slice(0,647)+'…':a;
+ }
+ let d=e.descriptions?.ko?.value||'';
+ if(s.length>=35 && d && !s.includes(d)) s+=' '+q+'은(는) '+d+'입니다.';
+ if(s.length>=55)return s.slice(0,650);
+ if(d)return `${q}은(는) ${d}입니다. 이름과 종류가 확인된 대상을 바탕으로 만든 카드입니다.`;
+ return `${q}의 대상과 종류는 확인했지만, 충분한 한국어 설명은 찾지 못했습니다.`;
 }
 function badPhoto(u,k){
  let s=decodeURIComponent(u||'').toLowerCase(),bad=['map','range','distribution','diagram','chart','logo','flag','icon','painting','drawing','herbarium','essential_oil'];
@@ -120,20 +145,29 @@ async function photos(q,k,e,ko,en){
  for(let u of [ko?.thumbnail?.source,ko?.original?.source,en?.thumbnail?.source,en?.original?.source].filter(Boolean))if(!badPhoto(u,k))a.push(u);
  let p18=claim(e,'P18')[0];if(p18){let u=await fileUrl(p18);if(u&&!badPhoto(u,k))a.push(u)}
  if(e.id)a.push(...await commons('haswbstatement:P180='+e.id,k));
- a.push(...await commons(e.labels?.en?.value||e.labels?.ko?.value||q,k));
+ let base=e.labels?.en?.value||e.labels?.ko?.value||q;
+ if(k==='plant'){a.push(...await commons(base+' plant',k));a.push(...await commons(base+' tree',k))}
+ else if(k==='animal')a.push(...await commons(base+' animal',k));
+ else if(k==='food')a.push(...await commons(base+' food',k));
+ a.push(...await commons(base,k));
  return [...new Set(a)].slice(0,5);
 }
 async function go(){
  let q=$('#q').value.trim(),k=$('#kind').value;if(!q)return;
- $('#out').innerHTML='<div class="panel status">🔎 「'+esc(q)+'」을 찾고 종류를 확인하고 있어요…</div>';
+ $('#out').innerHTML='<div class="panel status">🔎 「'+esc(q)+'」 이름 검색 → 종류 확인 → 설명 → 사진 순서로 찾고 있어요…</div>';
  try{
   let s=await findSubject(q,k);
-  if(!s){$('#out').innerHTML='<div class="panel warn"><b>자동 확정하지 않았습니다.</b><br>이름과 종류가 맞는 대상을 충분히 확인하지 못했습니다. 엉뚱한 카드를 만드는 대신 여기서 멈춥니다.</div>';return}
+  if(!s || s.failed){
+   let tr=(s?.trace||[]).slice(0,5).map(x=>`${esc(x.title)} ${x.no?'<span class="no">✕ 종류 불일치</span>':'— 종류 증거 부족'}`).join('<br>');
+   $('#out').innerHTML=`<div class="panel warn"><b>자동 확정하지 않았습니다.</b><br>엉뚱한 카드를 만드는 대신 멈췄습니다.</div>${tr?`<div class="trace"><b>확인한 후보</b><br>${tr}</div>`:''}`;return
+  }
   let e=s.e,ko=await page('ko',e.sitelinks?.kowiki?.title),en=await page('en',e.sitelinks?.enwiki?.title);
   if(!ko&&s.lang==='ko')ko=s.p;if(!en&&s.lang==='en')en=s.p;
-  let d=description(q,e,ko),ps=await photos(q,k,e,ko,en);
+  let d=description(q,e,ko,en),ps=await photos(q,k,e,ko,en);
   let im=ps.length?'<div class="photos">'+ps.map((u,i)=>`<div class="photo"><span>${i+1}</span><img src="${esc(u)}"></div>`).join('')+'</div>':'<div class="warn">사진 후보를 찾지 못했습니다.</div>';
-  $('#out').innerHTML=`<div class="result"><div class="title">${esc(q)}</div><div class="meta">확정 대상: ${esc(e.labels?.ko?.value||e.labels?.en?.value||'')} · ${esc(e.id)}</div><div class="desc">${esc(d)}</div>${im}</div>`;
+  let rejected=(s.trace||[]).filter(x=>x.no).slice(0,3);
+  let diag=`<div class="trace"><b>검색 진단</b><br><span class="ok">✓ 대상 확정:</span> ${esc(e.labels?.ko?.value||e.labels?.en?.value||'')} (${esc(e.id)})<br><span class="ok">✓ 종류 확인:</span> ${esc($('#kind').selectedOptions[0].textContent)}<br><span class="ok">✓ 설명:</span> ${ko?.extract?'한국어 백과 설명':'한국어 짧은 설명'}<br><span class="ok">✓ 사진 후보:</span> ${ps.length}장${rejected.length?'<br><span class="no">✕ 제외 후보:</span> '+rejected.map(x=>esc(x.title)).join(' · '):''}</div>`;
+  $('#out').innerHTML=`<div class="result"><div class="title">${esc(q)}</div><div class="meta">확정 대상: ${esc(e.labels?.ko?.value||e.labels?.en?.value||'')} · ${esc(e.id)}</div>${diag}<div class="desc">${esc(d)}</div>${im}</div>`;
  }catch(e){$('#out').innerHTML='<div class="panel warn">검색 중 오류가 생겼습니다. 다시 시도해 주세요.</div>'}
 }
 function ex(q,k){$('#q').value=q;$('#kind').value=k;go()}
