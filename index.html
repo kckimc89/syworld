@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>카드 검색엔진 시험기 V5 · 1차/2차 검색</title>
+<title>카드 검색엔진 시험기 V3.1 · 나무→열매 보조검색</title>
 <style>
 :root{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;color:#172033;background:#f5f7fb}
 *{box-sizing:border-box} body{margin:0;padding:18px}.wrap{max-width:900px;margin:auto}
@@ -22,10 +22,10 @@ button{background:#3056d3;color:#fff;border:0;font-weight:800;cursor:pointer}but
 </style>
 </head>
 <body><div class="wrap">
-<h1>🪄 카드 검색엔진 시험기 V5 · 1차/2차 검색</h1>
+<h1>🪄 카드 검색엔진 시험기 V3.1 · 나무→열매 보조검색</h1>
 <div class="sub">백과사전과 완전히 분리된 시험기입니다. <b>나라 조건은 사용하지 않습니다.</b><br>
-먼저 <b>대표 이름 그대로 1차 검색</b>합니다. 좋은 결과가 없을 때만, 이름에서 자연스럽게 얻을 수 있는 직접 관련 대상(예: 포도나무→포도)을 <b>2차 검색</b>합니다.<br>
-1차 결과가 좋으면 2차 검색은 하지 않습니다.</div>
+<b>V3 검색을 그대로 사용합니다.</b> 먼저 원래 이름으로 검색하고, 「○○나무」의 V3 결과가 좋지 않을 때만 「○○」로 한 번 더 찾습니다.<br>
+그 외 항목의 검색 방식은 V3와 같습니다.</div>
 <div class="panel">
  <div class="row">
   <input id="q" placeholder="예: 하몽 이베리코" autocomplete="off">
@@ -51,22 +51,20 @@ const esc=s=>String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&
 async function J(u){let c=new AbortController(),tm=setTimeout(()=>c.abort(),4500);try{let r=await fetch(u,{signal:c.signal});if(!r.ok)throw Error(r.status);return await r.json()}finally{clearTimeout(tm)}}
 
 const KIND_KO={food:'음식',animal:'동물',plant:'식물',place:'장소',culture:'문화',person:'인물',art:'예술작품'};
-const ALIAS={};
-function aliases(q){return [q]}
-
-// Generic fallback derivation. It does not contain any item name.
-// Korean fruit-tree style names: "○○나무" -> "○○".
-// This is attempted only after the original name fails quality checks.
-function fallbackTarget(q,k){
- if(k==='plant'){
-   let s=q.trim();
-   if(s.endsWith('나무') && s.length>2){
-     let x=s.slice(0,-2).trim();
-     if(x.length>=1)return {q:x, kind:'plant', relation:'나무의 직접 관련 대상'};
-   }
- }
- return null;
-}
+const ALIAS={
+ '하몽 이베리코':['하몬 이베리코','jamón ibérico','jamon iberico'],
+ '스페인아이벡스':['스페인 아이벡스','Spanish ibex'],
+ '스페인제국수리':['스페인 제국수리','Spanish imperial eagle'],
+ '올리브나무':['올리브 나무','olive tree','Olea europaea'],
+ '코르크참나무':['코르크 참나무','cork oak','Quercus suber'],
+ '오렌지나무':['오렌지 나무','orange tree','Citrus sinensis'],
+ '포도나무':['포도 나무','grapevine','Vitis vinifera'],
+ '라벤더':['lavender','Lavandula'],
+ '크로케타':['크로켓','croqueta','croquette'],
+ '추로스':['추로','churros','churro'],
+ '파에야':['paella']
+};
+function aliases(q){return [...new Set([q,...(ALIAS[q]||[])])]}
 const WORDS={
  food:{yes:['음식','요리','식품','햄','빵','수프','튀김','dish','food','cuisine','ham','bread','soup','croquette'],no:['스포츠','운동','선수','기술','sport','athlete','gymnastics','move']},
  animal:{yes:['동물','새','조류','포유류','독수리','수리','늑대','곰','스라소니','아이벡스','animal','bird','mammal','eagle','wolf','bear','lynx','ibex','taxon','species'],no:['제국','왕국','국가','empire','kingdom','state']},
@@ -161,40 +159,57 @@ async function photos(q,k,e,ko,en){
  a.push(...await commons(enName,k));
  return [...new Set(a)].slice(0,5);
 }
-async function buildResult(searchQ,k,displayQ,stage){
- let s=await findSubject(searchQ,k);
- if(!s)return null;
+async function v3Build(q,k){
+ let s=await findSubject(q,k);
+ if(!s)return {ok:false};
  let e=s.e,ko=await page('ko',e.sitelinks?.kowiki?.title),en=await page('en',e.sitelinks?.enwiki?.title);
  if(!ko&&s.lang==='ko')ko=s.p;if(!en&&s.lang==='en')en=s.p;
  let chosen=e.labels?.ko?.value||e.labels?.en?.value||s.p.title||'';
- if(Math.max(...aliases(searchQ).map(x=>nameScore(x,chosen)),...aliases(searchQ).map(x=>nameScore(x,s.p.title)))<65)return null;
- let d=description(searchQ,e,ko,en),ps=await photos(searchQ,k,e,ko,en);
- // "Good result": usable explanation and at least one photo.
- let usefulDesc=d && !d.includes('충분한 한국어 설명을 찾지 못했습니다') && d.length>=25;
- if(!usefulDesc || ps.length<1)return null;
- return {s,e,ko,en,chosen,d,ps,stage,searchQ,displayQ};
+ if(Math.max(...aliases(q).map(x=>nameScore(x,chosen)),...aliases(q).map(x=>nameScore(x,s.p.title)))<65)return {ok:false};
+ let d=description(q,e,ko,en),ps=await photos(q,k,e,ko,en);
+ return {ok:true,e,chosen,d,ps};
+}
+function v31Good(r){
+ if(!r||!r.ok)return false;
+ let d=String(r.d||'');
+ // "Good" only means V3 produced usable explanation + at least one photo.
+ return d.length>=25 && !d.includes('충분한 한국어 설명을 찾지 못했습니다') && (r.ps||[]).length>0;
+}
+function v31FruitName(q,k){
+ // The ONLY added rule: for a plant ending in "나무", remove "나무".
+ if(k!=='plant')return null;
+ let s=String(q||'').trim();
+ if(!s.endsWith('나무') || s.length<=2)return null;
+ let fruit=s.slice(0,-2).trim();
+ return fruit||null;
+}
+function renderV31(originalQ,r,usedFruit){
+ let im=r.ps.length?'<div class="photos">'+r.ps.map((u,i)=>`<div class="photo"><span>${i+1}</span><img src="${esc(u)}"></div>`).join('')+'</div>':'<div class="warn">사진 후보를 찾지 못했습니다.</div>';
+ let meta=usedFruit
+   ? `<div class="meta">↪ 원래 이름의 결과가 부족하여 열매 「${esc(usedFruit)}」 자료를 사용 · 카드 제목은 「${esc(originalQ)}」 유지</div>`
+   : `<div class="meta">확정 대상: ${esc(r.chosen)} · ${esc(r.e.id)}</div>`;
+ $('#out').innerHTML=`<div class="result"><div class="title">${esc(originalQ)}</div>${meta}<div class="desc">${esc(r.d)}</div>${im}</div>`;
 }
 async function go(){
  let q=$('#q').value.trim(),k=$('#kind').value;if(!q)return;
- $('#out').innerHTML='<div class="panel status">🔎 1차 검색: 「'+esc(q)+'」 그대로 찾고 있습니다…</div>';
+ $('#out').innerHTML='<div class="panel status">🔎 V3 방식으로 「'+esc(q)+'」을 찾고 있습니다…</div>';
  try{
-  let r=await buildResult(q,k,q,1);
-  if(!r){
-    let fb=fallbackTarget(q,k);
-    if(fb){
-      $('#out').innerHTML='<div class="panel status">🔎 1차 검색 결과가 부족합니다. 2차 검색: 「'+esc(fb.q)+'」을 확인하고 있습니다…</div>';
-      r=await buildResult(fb.q,fb.kind,q,2);
-    }
-  }
-  if(!r){
-    $('#out').innerHTML='<div class="panel warn"><b>자동 확정하지 않았습니다.</b><br>1차 검색에서 좋은 결과를 만들지 못했고, 사용할 수 있는 2차 결과도 확인하지 못했습니다. 억지로 다른 대상을 선택하지 않고 멈췄습니다.</div>';return
-  }
-  let im='<div class="photos">'+r.ps.map((u,i)=>`<div class="photo"><span>${i+1}</span><img src="${esc(u)}"></div>`).join('')+'</div>';
-  let note=r.stage===1
-    ? `<div class="meta">✓ 1차 검색 사용 · 확정 대상: ${esc(r.chosen)} · ${esc(r.e.id)}</div>`
-    : `<div class="meta">↪ 2차 검색 사용 · 카드 제목은 「${esc(q)}」 유지 · 자료 대상: ${esc(r.chosen)} · ${esc(r.e.id)}</div>`;
-  $('#out').innerHTML=`<div class="result"><div class="title">${esc(q)}</div>${note}<div class="desc">${esc(r.d)}</div>${im}</div>`;
- }catch(e){$('#out').innerHTML='<div class="panel warn">검색이 오래 걸리거나 연결이 원활하지 않아 중단했습니다. 다시 시도해 주세요.</div>'}
+   // 1. Always run unchanged V3 search first.
+   let first=await v3Build(q,k);
+   if(v31Good(first)){renderV31(q,first,null);return}
+
+   // 2. Only if it is a ○○나무 plant and V3 result is not good, try ○○ once.
+   let fruit=v31FruitName(q,k);
+   if(fruit){
+     $('#out').innerHTML='<div class="panel status">🔎 「'+esc(q)+'」 결과가 부족하여 열매 「'+esc(fruit)+'」를 V3 방식으로 한 번 더 찾고 있습니다…</div>';
+     let second=await v3Build(fruit,k);
+     if(v31Good(second)){renderV31(q,second,fruit);return}
+   }
+
+   $('#out').innerHTML='<div class="panel warn"><b>자동 확정하지 않았습니다.</b><br>V3 검색에서 좋은 결과를 만들지 못했습니다.'+(fruit?' 열매 이름으로 한 번 더 검색했지만 좋은 결과가 없었습니다.':'')+'</div>';
+ }catch(e){
+   $('#out').innerHTML='<div class="panel warn">검색이 오래 걸리거나 연결이 원활하지 않아 중단했습니다. 다시 시도해 주세요.</div>';
+ }
 }
 function ex(q,k){$('#q').value=q;$('#kind').value=k;go()}
 $('#q').addEventListener('keydown',e=>{if(e.key==='Enter')go()});
