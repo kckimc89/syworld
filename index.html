@@ -61,6 +61,10 @@ button.improve-desc{background:#e7f4ff;border-color:#87bde8}button.last-confirme
 </style>
 <style id="v8-state-style">
 .rep-card-btn-v5.registered{border:1px solid #9fc8a8!important;background:#eaf5ec!important;color:#66806b!important;opacity:.72!important;box-shadow:none!important;cursor:default!important}
+</style><style id="v9-shared-state">
+.rep-card-btn-v5.can-make{background:#e9e3ff!important;border:2px solid #6446d8!important;color:#301d88!important}
+.rep-card-btn-v5.registered{background:#e8f4ea!important;border:2px solid #9bc7a3!important;color:#52705a!important;opacity:.68!important}
+.rep-card-btn-v5.cannot-make{background:#f5f6f8!important;border:1px solid #d6d9df!important;color:#9297a0!important}
 </style></head><body>
 <style>
 #kbBtn{position:fixed;right:14px;bottom:14px;z-index:12020;border:0;border-radius:999px;padding:13px 17px;background:#244b76;color:#fff;font-weight:900;box-shadow:0 4px 14px #0003}
@@ -122,16 +126,15 @@ async function kbPage(title){
  try{const u='https://ko.wikipedia.org/w/api.php?action=query&prop=extracts|pageimages|pageprops&ppprop=wikibase_item&exintro=1&explaintext=1&pithumbsize=900&titles='+encodeURIComponent(title)+'&format=json&origin=*';const r=await fetch(u),j=await r.json();return Object.values(j.query?.pages||{})[0]||null}catch(_){return null}
 }
 async function kbCheck(type,i,btn){
- const name=KB[type].names[i],pv=document.getElementById('kbPreview');pv.innerHTML='<div class="kbBox">🔎 정확한 대상·사진·설명을 확인하고 있어요…</div>';
- const hits=await kbWikiSearch(name,type);let best=null,bestScore=-99;
- for(const h of hits.slice(0,8)){const p=await kbPage(h.title);if(!p)continue;const desc=(p.extract||'').trim();let s=kbTypeFit(type,h.title,desc);if(h.title===name)s+=3;if(h.title.includes(name)||name.includes(h.title))s+=1;if(p.thumbnail?.source)s+=1;if(desc.length>60)s+=1;if(s>bestScore){bestScore=s;best={p,desc}}}
- const possible=best&&best.p.thumbnail?.source&&best.desc.length>45&&bestScore>0;
- btn.classList.remove('ok','help');btn.classList.add(possible?'ok':'help');btn.querySelector('small').textContent=possible?'⭐ 카드 만들 수 있어요':'🧩 내가 추가하도록 도와줘';
+ const name=KB[type].names[i],pv=document.getElementById('kbPreview');
+ pv.innerHTML='<div class="kbBox">🔎 나라 화면과 같은 공통 엔진으로 확인하고 있어요…</div>';
+ const best=await sharedResolve(name,type);
+ const possible=!!(best&&best.desc);
+ btn.classList.remove('ok','help');btn.classList.add(possible?'ok':'help');
+ btn.querySelector('small').textContent=possible?'⭐ 카드 만들 수 있어요':'🧩 내가 추가하도록 도와줘';
  if(possible){
-  pv.innerHTML=`<div class="kbBox kbPreview"><h3>⭐ ${kbEsc(name)} 카드 미리보기</h3><img src="${best.p.thumbnail.source}" alt=""><p>${kbEsc(best.desc.slice(0,500))}</p><p class="kbHint">이 시험판에서는 ‘가능 여부’까지만 확인합니다. 다음 단계에서 실제 카드 저장과 연결합니다.</p></div>`;
- }else{
-  kbHelp(name,type,best,pv);
- }
+  pv.innerHTML=`<div class="kbBox kbPreview"><h3>⭐ ${kbEsc(name)} 카드 미리보기</h3>${best.photo?`<img src="${best.photo}" alt="">`:''}<p>${kbEsc(best.desc.slice(0,500))}</p><p class="kbHint">나라 화면과 완전히 같은 검색 함수를 사용합니다.</p></div>`;
+ }else kbHelp(name,type,null,pv);
 }
 function kbHelp(name,type,best,pv){
  const desc=best?.desc?kbEsc(best.desc.slice(0,260)):'자동으로 믿을 만한 카드 자료를 충분히 확보하지 못했습니다.';
@@ -1120,13 +1123,19 @@ async function renderSection(s){
    if(!photo && !(x.source==='recommended'&&x.photoVerified===false)){autoPhoto(x.name,COUNTRY,s).then(u=>{if(u&&card.isConnected)card.querySelector('.photo-area').innerHTML=`<img src="${u}" alt="${esc(x.name)}">`;})}
    const input=card.querySelector('input'); card.querySelector('.photo').onclick=()=>input.click();
    input.onchange=async()=>{const f=input.files?.[0];if(!f)return;try{const data=await preparePhoto(f);await setUserPhoto(`photo_${DATA_NS}${COUNTRY}_${s}_${x.id}`,data);await renderSection(s)}catch(e){alert('사진을 저장하지 못했습니다. 다른 사진을 선택해 주세요.')}};
-   card.querySelector('.edit-desc').onclick=()=>{const v=prompt('설명을 수정하세요.',card.querySelector('p')?.textContent||desc);if(v!==null&&v.trim()){localStorage.setItem(editKey(s,x.id),v.trim());renderSection(s)}};
+   card.querySelector('.edit-desc').onclick=()=>{const v=prompt('이름을 수정하세요. 필요한 경우 이름 뒤에 짧은 주석을 붙일 수 있습니다.',x.name);if(v!==null&&v.trim()){
+     const nn=v.trim(); const all=getCustom(s); const other=all.filter(y=>y.id!==x.id);
+     if(hasIdentity(nn,other)){alert('이미 같은 이름의 항목이 있습니다.');return;}
+     x.name=nn; setCustom(s,all.map(y=>y.id===x.id?{...y,name:nn}:y)); renderSection(s).then(()=>renderRepresentativeCardButtonsV5(s));
+   }};
    card.querySelector('.delete').onclick=async()=>{
      if(!requireDeletePin())return; if(!confirm(`「${x.name}」 항목을 삭제할까요?`))return;
      localStorage.removeItem(editKey(s,x.id)); await deleteUserPhoto(`photo_${DATA_NS}${COUNTRY}_${s}_${x.id}`);
      setCustom(s,getCustom(s).filter(y=>y.id!==x.id));
      setDeletedBase(s,[x.name,...getDeletedBase(s).filter(n=>!sameIdentity(n,x.name))].slice(0,12));
      await renderSection(s);
+     // Registered -> deleted -> available again, using the already cached successful search.
+     if(typeof renderRepresentativeCardButtonsV5==='function')await renderRepresentativeCardButtonsV5(s);
    };
    el.appendChild(card);
  }
@@ -1445,18 +1454,90 @@ function V8_kind(section,name){
  if(section==='art')return 'art';
  return 'person';
 }
+
+// ===== V9 ONE SHARED CARD ENGINE =====
+// The country screen and "새 백과구조 시험" both call this exact resolver.
+function sharedKind(section){
+ if(section==='animals')return 'animal';
+ if(section==='singers'||section==='athletes'||section==='people')return 'person';
+ if(section==='places')return 'place';
+ if(section==='art')return 'art';
+ if(section==='culture')return 'culture';
+ if(section==='fruit')return 'fruit';
+ return 'food';
+}
+function sharedTypeFit(type,title,desc){
+ const x=(String(title||'')+' '+String(desc||'')).toLowerCase();
+ const good={
+  food:['요리','음식','수프','빵','햄','소시지','디저트','dish','food','cuisine','ham'],
+  fruit:['과일','열매','fruit','berry','citrus','사과','오렌지','포도','복숭아','배'],
+  animal:['동물','포유류','조류','새','어류','파충류','종','과','속','animal','bird','mammal','species'],
+  plant:['식물','나무','꽃','관목','초본','종','과','속','plant','tree','species'],
+  place:['건축','성당','궁전','공원','박물관','산','광장','기념관','building','cathedral','palace','park','museum'],
+  culture:['문화','전통','축제','춤','음악','공연','culture','tradition','festival','dance','music'],
+  person:['가수','선수','작가','인물','사람','배우','테니스','축구','농구','야구','human','person','singer','athlete','writer'],
+  art:['회화','작품','그림','미술','유화','캔버스','painting','artwork','sculpture']
+ }[type]||[];
+ const bad={
+  food:['선수','스포츠','athlete'], fruit:['영화','소설','작품'], animal:['회화','작품','오일'],
+  plant:['회화','작품','오일','기름'], place:['가수','선수'], culture:['식물','동물'],
+  person:['작품','영화','책','artwork','film','book'], art:['가수','선수','작가이다','painter','artist']
+ }[type]||[];
+ return good.filter(k=>x.includes(k)).length-bad.filter(k=>x.includes(k)).length*2;
+}
+function sharedAliases(name){
+ const out=[name];
+ try{
+  if(typeof V3_aliases==='function')out.push(...V3_aliases(name));
+ }catch(e){}
+ return [...new Set(out.filter(Boolean))];
+}
+async function sharedWikiSearch(name,type){
+ const koKind={food:'음식',fruit:'과일',animal:'동물',plant:'식물',place:'장소',culture:'문화',person:'인물',art:'예술 작품'}[type]||'';
+ const names=sharedAliases(name), qs=[];
+ for(const n of names){qs.push(n); if(koKind)qs.push(n+' '+koKind)}
+ let hits=[],seen=new Set();
+ for(const q of qs.slice(0,6)){
+  try{
+   const r=await fetch('https://ko.wikipedia.org/w/api.php?action=query&list=search&srlimit=8&srsearch='+encodeURIComponent(q)+'&format=json&origin=*');
+   const j=await r.json();
+   for(const h of (j.query?.search||[])){if(!seen.has(h.title)){seen.add(h.title);hits.push(h)}}
+  }catch(e){}
+ }
+ return hits;
+}
+async function sharedPage(title){
+ try{
+  const u='https://ko.wikipedia.org/w/api.php?action=query&prop=extracts|pageimages|pageprops&ppprop=wikibase_item&exintro=1&explaintext=1&pithumbsize=1000&titles='+encodeURIComponent(title)+'&format=json&origin=*';
+  const r=await fetch(u),j=await r.json();return Object.values(j.query?.pages||{})[0]||null;
+ }catch(e){return null}
+}
+async function sharedResolve(name,type){
+ const hits=await sharedWikiSearch(name,type); let best=null,bestScore=-999;
+ const aliases=sharedAliases(name);
+ for(const h of hits.slice(0,12)){
+  const p=await sharedPage(h.title); if(!p)continue;
+  const desc=(p.extract||'').replace(/\s+/g,' ').trim();
+  let s=sharedTypeFit(type,h.title,desc);
+  for(const a of aliases){
+   if(h.title===a)s+=4;
+   else if(h.title.includes(a)||a.includes(h.title))s+=2;
+  }
+  if(p.thumbnail?.source)s+=1;if(desc.length>60)s+=1;
+  if(s>bestScore){bestScore=s;best={p,desc,score:s}}
+ }
+ if(!(best&&best.desc.length>45&&bestScore>0))return null;
+ return {name,title:best.p.title||name,entityId:best.p.pageprops?.wikibase_item||'',pageId:best.p.pageid||'',
+   desc:best.desc.slice(0,900),photo:best.p.thumbnail?.source||'',photos:best.p.thumbnail?.source?[best.p.thumbnail.source]:[],
+   sources:['공통 카드 검색엔진'],score:bestScore};
+}
 async function V8_resolve(section,q){
- const k=V8_kind(section,q);
- const s=await V3_findSubject(q,k); if(!s)return null;
- const e=s.e;
- let ko=await V3_page('ko',e.sitelinks?.kowiki?.title),en=await V3_page('en',e.sitelinks?.enwiki?.title);
- if(!ko&&s.lang==='ko')ko=s.p;if(!en&&s.lang==='en')en=s.p;
- const chosen=e.labels?.ko?.value||e.labels?.en?.value||s.p.title||'';
- const score=Math.max(...V3_aliases(q).map(x=>V3_nameScore(x,chosen)),...V3_aliases(q).map(x=>V3_nameScore(x,s.p.title)));
- if(score<65)return null;
- const desc=V3_description(q,e,ko,en), pics=await V3_photos(q,k,e,ko,en);
- if(!desc||!pics.length)return null;
- return {name:q,title:chosen,entityId:e.id||'',desc,photo:pics[0],photos:pics,sources:['V3 tested engine']};
+ let k=sharedKind(section);
+ if(section==='animals'){
+   k=['나무','라벤더','대나무','소나무','삼나무','세쿼이아','레드우드','선인장','메이플','매화','참나무']
+      .some(x=>String(q).includes(x))?'plant':'animal';
+ }
+ return await sharedResolve(q,k);
 }
 
 // === REPRESENTATIVE NAME -> CARD PROCESS V5 : availability first ===
@@ -1477,7 +1558,7 @@ function parseRepNames(text){
    .filter(Boolean);
 }
 async function precheckRepresentative(section,name){
- const key=['V8-V3',section,name].join('|');
+ const key=['V9-SHARED',section,name].join('|');
  if(repAvailabilityCache.has(key))return repAvailabilityCache.get(key);
  // Persistent cache: one successful search is reused across Safari/app launches.
  try{
@@ -1504,8 +1585,10 @@ function openRepresentativePreview(section,name,verified,panel){
      photoVerified:true,photoRemote:String(pv.querySelector('input[name="v3photo"]:checked')?.value||verified.photo||''),entityId:String(verified.entityId||''),
      entityTitle:String(verified.title||''),pageId:verified.pageId==null?'':String(verified.pageId),
      sources:Array.isArray(verified.sources)?verified.sources.map(String):[]};
-   setCustom(section,[...a,item]); await renderSection(section);
-   pv.innerHTML=''; renderRepresentativeCardButtonsV5(section);
+   setCustom(section,[...a,item]);
+   setDeletedBase(section,getDeletedBase(section).filter(n=>!sameIdentity(n,name)));
+   await renderSection(section);
+   pv.innerHTML=''; await renderRepresentativeCardButtonsV5(section);
  };
 }
 function manualRepresentative(section,name){
