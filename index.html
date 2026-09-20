@@ -972,7 +972,7 @@ const CANDIDATE_CHECK_CACHE=new Map();
 const CANDIDATE_TARGET=8;
 async function verifyCandidateTarget(section,target){
  const name=typeof target==='string'?target:target.name, source=typeof target==='string'?'discover':(target.source||'discover');
- const k='simpleflow-v6|'+section+'|'+normalizeItemName(name);
+ const k='simpleflow-v7|'+section+'|'+normalizeItemName(name);
  if(CANDIDATE_CHECK_CACHE.has(k))return CANDIDATE_CHECK_CACHE.get(k);
  const promise=(async()=>{
    const e=await resolveWikipediaEntity(name,COUNTRY,section,source);if(!e)return null;
@@ -1101,49 +1101,56 @@ function titleMatchScore(name,title){
  if(b.includes(a)||a.includes(b))return 70;
  return identityScore(name,title)?50:0;
 }
+
+async function wikiOpenSearch(name,lang){
+ try{
+  const u='https://'+lang+'.wikipedia.org/w/api.php?action=opensearch&search='+encodeURIComponent(name)+'&limit=10&namespace=0&format=json&origin=*';
+  const j=await fetchJson(u);return j?.[1]||[];
+ }catch(e){return []}
+}
 async function chooseEntity(name,kind){
- // V6 SIMPLE FLOW:
- // 1. 이름으로 Wikipedia 문서 검색
- // 2. 제목/첫 설명이 이름과 맞는 문서 선택
- // 3. 그 문서에 연결된 Wikidata Entity의 '종류'만 확인
- // 나라, 국가점수, 복수 검색문, 관계점수는 사용하지 않는다.
+ // V7: 검색 조건은 여전히 오직 이름 + 종류. 나라는 전혀 사용하지 않는다.
+ // 1) 한국어 Wikipedia 일반검색  2) Wikipedia 제목/리다이렉트 후보
+ // 3) Wikidata 이름/별칭 검색. 셋 중 종류가 맞는 가장 좋은 Entity를 선택한다.
  let pool=[];
  for(const lang of ['ko','en']){
-   const pages=await wikiNameSearch(name,lang);
+   let pages=await wikiNameSearch(name,lang);
+   const extraTitles=await wikiOpenSearch(name,lang);
+   for(const title of extraTitles.slice(0,8)){
+     const pg=await wikiPage(lang+'wiki',title);
+     if(pg&&!pages.some(x=>x.pageid===pg.pageid))pages.push(pg);
+   }
    for(const pg of pages){
-     const tm=titleMatchScore(name,pg.title||'');
-     if(!tm)continue;
-     const qid=pg.pageprops?.wikibase_item;
-     if(!qid)continue;
-     const es=await wdEntities([qid]),e=es[qid];
-     if(!e)continue;
+     const qid=pg.pageprops?.wikibase_item;if(!qid)continue;
+     const es=await wdEntities([qid]),e=es[qid];if(!e)continue;
      const tt=await typeText(e);
      const corpus=(pg.title||'')+' '+(pg.extract||'')+' '+(e.descriptions?.ko?.value||'')+' '+(e.descriptions?.en?.value||'')+' '+tt;
      const ts=simpleTypeScore(kind,corpus);
      if(ts<=0)continue;
-     pool.push({e,pg,lang,score:tm+ts});
+     const labels=[pg.title,e.labels?.ko?.value,e.labels?.en?.value,e.labels?.es?.value,e.labels?.ja?.value].filter(Boolean);
+     let ident=Math.max(0,...labels.map(x=>titleMatchScore(name,x)));
+     // 일반검색이 이 문서를 실제 후보로 돌려줬다면 제목 철자가 조금 달라도 후보로 인정.
+     if(!ident)ident=20;
+     pool.push({e,pg,lang,score:ident+ts});
    }
  }
- pool.sort((a,b)=>b.score-a.score);
- if(pool[0])return pool[0];
-
- // 한국어 이름의 표기가 Wikipedia 제목과 달라 못 찾은 경우에만
- // Wikidata 이름/별칭 검색을 단 한 번 보조 경로로 사용한다.
+ // Wikidata 이름/별칭도 별도 후보군으로 함께 본다.
  let hits=[];
- try{hits=await wdSearchSimple(name,'ko')}catch(e){}
- if(!hits.length){try{hits=await wdSearchSimple(name,'en')}catch(e){}}
- const ids=[...new Set(hits.map(x=>x.id))].slice(0,15), es=await wdEntities(ids);
+ for(const lang of ['ko','en']){try{hits.push(...await wdSearchSimple(name,lang))}catch(e){}}
+ const ids=[...new Set(hits.map(x=>x.id))].slice(0,25), es=await wdEntities(ids);
  for(const h of hits){
    const e=es[h.id];if(!e)continue;
-   const labels=[e.labels?.ko?.value,e.labels?.en?.value,e.labels?.es?.value,e.labels?.ja?.value].filter(Boolean);
-   if(!Math.max(0,...labels.map(x=>identityScore(name,x))))continue;
    const tt=await typeText(e);
-   const corpus=labels.join(' ')+' '+(e.descriptions?.ko?.value||'')+' '+(e.descriptions?.en?.value||'')+' '+tt;
-   if(simpleTypeScore(kind,corpus)<=0)continue;
-   return {e,pg:null,lang:'wikidata',score:20};
+   const corpus=[h.label,h.description,e.labels?.ko?.value,e.labels?.en?.value,e.descriptions?.ko?.value,e.descriptions?.en?.value,tt].filter(Boolean).join(' ');
+   const ts=simpleTypeScore(kind,corpus);if(ts<=0)continue;
+   let ident=Math.max(titleMatchScore(name,h.label||''),identityScore(name,h.label||'')?50:0);
+   if(!ident)ident=15;
+   pool.push({e,pg:null,lang:'wikidata',score:ident+ts});
  }
- return null;
+ pool.sort((a,b)=>b.score-a.score);
+ return pool[0]||null;
 }
+
 function badImage(url,kind){
  const s=decodeURIComponent(url||'').toLowerCase();
  const bad=['map','distribution','range','diagram','scheme','chart','drawing','illustration','icon','logo','flag','poster','painting','oil_on','herbarium','botanical_illustration','essential_oil'];
@@ -1177,26 +1184,24 @@ async function commonsNamePhoto(label,kind){
  }catch(e){}
  return '';
 }
-function cleanLeadSentence(s){
- s=(s||'').replace(/\([^)]{1,120}\)/g,' ').replace(/\[[^\]]+\]/g,' ').replace(/\s+/g,' ').trim();
+function cleanKoreanIntro(s){
+ s=(s||'').replace(/\[[^\]]+\]/g,' ').replace(/\s+/g,' ').trim();
  return s;
 }
 function koreanDesc(name,section,e,koPage,enPage){
- const ko=stripHtml(koPage?.extract||'');
+ const ko=cleanKoreanIntro(stripHtml(koPage?.extract||''));
+ // V7: 이전 버전처럼 충분한 설명을 보여준다.
+ // 한국어 Wikipedia 도입부가 있으면 최대 3문장/약 430자까지 사용한다.
+ if(ko.length>=35){
+   let sentences=ko.split(/(?<=[.!?。！？])\s+/).filter(Boolean).slice(0,3);
+   let out=sentences.join(' ');
+   if(out.length>430)out=out.slice(0,427)+'…';
+   return out;
+ }
  const kd=(e.descriptions?.ko?.value||'').trim();
- // 카드 설명은 백과 본문이 아니라 어린이가 빠르게 이해하는 2~3문장만 사용한다.
- // 학명·분류·연도 나열 등 지나치게 깊은 첫 문단은 그대로 복사하지 않는다.
- if(kd){
-   let first=cleanLeadSentence(`${name}은(는) ${kd}입니다.`);
-   return first+` ${name}의 모습과 특징을 사진과 함께 살펴볼 수 있어요.`;
- }
- if(ko){
-   let first=cleanLeadSentence(ko.split(/(?<=[.!?。！？])\s+/)[0]||'');
-   if(first.length>130) first=first.slice(0,127)+'…';
-   if(first) return first+` ${name}의 대표적인 특징을 사진으로 함께 살펴보세요.`;
- }
- const label=SECTION_LABEL[section]||'항목';
- return `${name}은(는) ${label}에서 대표적으로 알아둘 대상입니다. 사진을 보며 생김새와 특징을 살펴보세요.`;
+ if(kd)return `${name}은(는) ${kd}입니다. 사진과 함께 대표적인 특징과 모습을 살펴볼 수 있습니다.`;
+ // 외국어 문장을 그대로 표시하지 않는다.
+ return `${name}에 해당하는 정확한 대상은 확인되었습니다. 한국어 설명 자료가 충분하지 않아 기본 정보만 표시합니다.`;
 }
 async function resolveRepresentativeCard(name,subjectId,section){
  // subjectId는 저장/UI 호환용. 카드 검색에는 사용하지 않는다.
@@ -1227,14 +1232,14 @@ async function resolveRepresentativeCard(name,subjectId,section){
 
 const REP_CHECK_CACHE=new Map();
 async function verifyRepresentative(section,name){
- const k='simpleflow-v6|'+section+'|'+normalizeItemName(name);
+ const k='simpleflow-v7|'+section+'|'+normalizeItemName(name);
  if(REP_CHECK_CACHE.has(k))return REP_CHECK_CACHE.get(k);
  const promise=resolveRepresentativeCard(name,COUNTRY,section);
  REP_CHECK_CACHE.set(k,promise); return promise;
 }
 async function previewRepresentative(s,name,box){
  const token=String(Date.now())+Math.random(); box.dataset.previewToken=token;
- box.innerHTML='<div class="preview-card">🔎 <b>「'+esc(name)+'」을 찾고 있어요.</b><br><span class="note">이름이 맞는지 → '+esc(SECTION_LABEL[s])+' 종류가 맞는지 → 사진과 짧은 설명을 확인합니다.</span></div>';
+ box.innerHTML='<div class="preview-card">🔎 <b>「'+esc(name)+'」을 찾고 있어요.</b><br><span class="note">이름을 찾고 → '+esc(SECTION_LABEL[s])+' 종류가 맞는지 확인한 뒤 → 사진과 충분한 한국어 설명을 준비합니다.</span></div>';
  const v=await verifyRepresentative(s,name);
  if(box.dataset.previewToken!==token)return;
  if(!v){
