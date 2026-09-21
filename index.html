@@ -121,7 +121,7 @@ body.view-cards #detail .cards .item>.actions{display:none}
 .kbHelp{border-top:1px dashed #ddd;margin-top:14px;padding-top:14px}.kbHelp button{border:0;border-radius:12px;padding:10px 12px;font-weight:800;margin:4px;background:#f0f2f5}
 .kbRank{font-size:12px;background:#eef3f8;border-radius:999px;padding:2px 7px;margin-right:4px}
 </style>
-<button id="kbBtn" onclick="kbOpen()">✨ 성공카드만 대표로 · V43</button>
+<button id="kbBtn" onclick="kbOpen()">✨ V3가 대표이름부터 선정 · V44</button>
 <div id="kbPanel"><div class="kbWrap">
  <div class="kbHead"><div><b style="font-size:23px">✨ 설명 → 대표 이름 → 카드 만들기</b><div class="kbHint">V5.2는 그대로 두고 새 구조만 별도로 시험합니다.</div></div><button onclick="kbClose()" style="font-size:26px;border:0;background:transparent">✕</button></div>
  <div class="kbBox"><b>🇪🇸 스페인 시험</b><p class="kbHint">이번 판은 구조를 확인하기 위한 스페인 콘텐츠 시험판입니다. 이름은 ‘카드가 잘 만들어지는 순서’가 아니라 대표성과 인지도를 우선해 배열했습니다.</p>
@@ -2281,87 +2281,60 @@ async function v16RunQueue(section){
   st.finished=true;
  }finally{st.running=false;v16PaintStatus(section)}
 }
-// ===== V43 FRESH START: SUCCESS-ONLY EDUCATION ENGINE =====
-const V43_FINAL_NS='magic_v43_final_';
-const V43_SESSION=new Map();
-function v43Key(section,name){return V43_FINAL_NS+String(COUNTRY||'')+'_'+section+'_'+encodeURIComponent(cardInputName(name))}
-function v43Read(section,name){try{const x=JSON.parse(localStorage.getItem(v43Key(section,name))||'null');return x&&x.desc&&x.photo?x:null}catch(e){return null}}
-function v43Write(section,name,v){
- if(!v?.desc||!v?.photo)return false;
- const x={name:cardInputName(name),title:String(v.title||name),entityId:String(v.entityId||''),pageId:v.pageId==null?'':String(v.pageId),
- desc:String(v.desc).trim(),photo:String(v.photo),sources:Array.isArray(v.sources)?v.sources.slice(0,2):[]};
- try{localStorage.setItem(v43Key(section,name),JSON.stringify(x));return true}catch(e){v43PurgeSearchCaches();try{localStorage.setItem(v43Key(section,name),JSON.stringify(x));return true}catch(_){return false}}
-}
-function v43PurgeSearchCaches(){
- const prefixes=['magicwand_photo_','place_desc_v30_','rebuilt_','autophoto_','trial_candidates_used_','magic_v13_entity_','magic_v14_entity_','magic_v15_entity_','magic_v16_entity_','magic_v27_entity_'];
- const del=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&prefixes.some(p=>k.startsWith(p)))del.push(k)}del.forEach(k=>localStorage.removeItem(k));
-}
-function v43Country(){return ({ES:'스페인',JP:'일본',US:'미국',CN:'중국',FR:'프랑스',EG:'이집트',BR:'브라질',IN:'인도'})[String(COUNTRY||'')]||''}
-function v43Type(kind,section){return ({food:'음식',fruit:'과일',animal:'동물',plant:'식물',place:'명소',singer:'가수',athlete:'운동선수',person:'역사인물',art:'예술작품'})[kind]||({culture:'문화',animals:'동식물',places:'명소',singers:'가수',athletes:'운동선수',people:'역사인물'})[section]||''}
-function v43Bad(req,title,desc){
- const x=(String(title||'')+' '+String(desc||'')).toLowerCase();
+// ===== V44 TRUE REPRESENTATIVE SELECTION: V3 CHOOSES BEFORE DISPLAY =====
+const V44_FINAL_NS='magic_v44_final_';
+const V44_SESSION=new Map();
+// These are candidate pools, NOT representative lists.  The final representative names are selected only after V3 verification.
+const V44_EXTRA_CANDIDATES={
+ CN:{
+  fruit:['망고','수박','감','자몽','키위'],
+  food:['월병','완탕','차오몐','마라탕','훙사오러우','춘권','딴딴면'],
+  animals:['동물 — 대왕판다','동물 — 티베트영양','동물 — 붉은관두루미','동물 — 아시아코끼리','식물 — 연꽃','식물 — 소나무','식물 — 국화','식물 — 목련'],
+  places:['계림','구채구','포탈라궁','상하이 와이탄','룽먼 석굴','러산 대불','우이산'],
+  culture:['중국 무술','등불 축제','중국 도자기','종이 공예','전지 공예','중국 전통음악'],
+  singers:['덩리쥔','왕페이','주걸륜','리젠','화천위'],
+  athletes:['류샹 — 육상','린단 — 배드민턴','리나 — 테니스','쑤빙톈 — 육상','장지커 — 탁구'],
+  people:['노자','맹자','사마천','제갈량','이백','두보','주원장','강희제','마오쩌둥'],
+  art:['《한희재야연도》','《오우도》','《유춘도》','《낙신부도》']
+ },
+ FR:{
+  fruit:['체리','딸기','무화과','레몬'],food:['에스카르고','프렌치 어니언 수프','카술레','갈레트','밀푀유'],
+  animals:['동물 — 유럽들소','동물 — 샤무아','동물 — 붉은여우','식물 — 올리브나무','식물 — 해바라기','식물 — 너도밤나무'],
+  places:['생트샤펠','퐁피두 센터','오르세 미술관','카르카손','아비뇽 교황청'],culture:['투르 드 프랑스','프랑스 혁명 기념일','프랑스 정원','발레'],
+  singers:['샤를 트레네','조르주 브라상스','줄리에트 그레코','셀린 디옹'],athletes:['티에리 앙리 — 축구','토니 파커 — 농구','마르탱 푸르카드 — 바이애슬론'],
+  people:['샤를 드골','르네 데카르트','클로드 모네','귀스타브 에펠'],art:['《별이 빛나는 밤》','《생라자르역》','《루앙 대성당》']
+ }
+};
+function v44Key(section,name){return V44_FINAL_NS+String(COUNTRY||'')+'_'+section+'_'+encodeURIComponent(cardInputName(name))}
+function v44Read(section,name){try{const x=JSON.parse(localStorage.getItem(v44Key(section,name))||'null');return x&&x.desc&&x.photo?x:null}catch(e){return null}}
+function v44Write(section,name,v){if(!v?.desc||!v?.photo)return false;const x={name:cardInputName(name),title:String(v.title||name),entityId:String(v.entityId||''),pageId:v.pageId==null?'':String(v.pageId),desc:String(v.desc).trim(),photo:String(v.photo),sources:Array.isArray(v.sources)?v.sources.slice(0,2):[]};try{localStorage.setItem(v44Key(section,name),JSON.stringify(x));return true}catch(e){v44PurgeSearchCaches();try{localStorage.setItem(v44Key(section,name),JSON.stringify(x));return true}catch(_){return false}}}
+function v44PurgeSearchCaches(){const ps=['magicwand_photo_','place_desc_v30_','rebuilt_','autophoto_','trial_candidates_used_','magic_v13_entity_','magic_v14_entity_','magic_v15_entity_','magic_v16_entity_','magic_v27_entity_','magic_v43_final_'];const del=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&ps.some(p=>k.startsWith(p)))del.push(k)}del.forEach(k=>localStorage.removeItem(k))}
+function v44Country(){return ({ES:'스페인',JP:'일본',US:'미국',CN:'중국',FR:'프랑스',EG:'이집트',BR:'브라질',IN:'인도'})[String(COUNTRY||'')]||''}
+function v44Type(kind,section){return ({food:'음식',fruit:'과일',animal:'동물',plant:'식물',place:'명소',singer:'가수',athlete:'운동선수',person:'역사인물',art:'예술작품'})[kind]||({culture:'문화',animals:'동식물',places:'명소',singers:'가수',athletes:'운동선수',people:'역사인물'})[section]||''}
+function v44Wrong(req,title,desc){const x=(String(title||'')+' '+String(desc||'')).toLowerCase(),c=v44Country();
  if(req.kind==='fruit'&&/가수|배우|인물|음반|노래|singer|actor|album|song/.test(x))return true;
  if(req.kind==='place'&&/화학|화합물|분자|산성|황산염|chemical|compound|molecule|acid|sulfate/.test(x))return true;
  if((req.kind==='animal'||req.kind==='plant')&&/가수|배우|선수|영화|음반|singer|actor|athlete|film|album/.test(x))return true;
- return false;
-}
-async function v43Verify(section,rawName){
- const name=cardInputName(rawName),req=v12Request(section,name),saved=v43Read(section,name);if(saved)return saved;
- const sk=String(COUNTRY||'')+'|'+section+'|'+name;if(V43_SESSION.has(sk))return V43_SESSION.get(sk);
- let v=null;
- // V3 remains the first verifier.
- try{v=await sharedResolve(name,req.kind,section)}catch(e){}
- if(v&&v.desc&&!v43Bad(req,v.title||name,v.desc)&&(v.photo||v.photos?.[0])){
-   v.photo=v.photo||v.photos[0];v43Write(section,name,v);V43_SESSION.set(sk,v);return v;
+ if(['person','singer','athlete'].includes(req.kind)){
+   const wrongCountry={CN:/대한민국|한국의|south korean|korean singer|korean actor/i,FR:/대한민국|한국의|중국의|chinese singer/i,JP:/대한민국|한국의|중국의/i,US:/대한민국|한국의|중국의/i};
+   if(wrongCountry[COUNTRY]?.test(x))return true;
  }
- // One contextual recovery pass. No persistent search cache.
- const q=[name,v43Country(),v43Type(req.kind,section)].filter(Boolean).join(' ');
- let best=null;
- try{
-  const u='https://ko.wikipedia.org/w/api.php?action=query&list=search&srsearch='+encodeURIComponent(q)+'&srlimit=6&format=json&origin=*';
-  const r=await fetch(u);if(r.ok){const j=await r.json();for(const h of j.query?.search||[]){
-   let s=null;try{s=await wikiSummaryByTitle(h.title,'ko')}catch(e){}
-   const d=String(s?.text||s?.description||'').replace(/\s+/g,' ').trim();if(d.length<45||v43Bad(req,h.title,d))continue;
-   const sem=v37SectionSemanticScore(section,h.title,d);if(sem<3)continue;
-   const score=sem+identityScore(name,h.title)+(d.includes(v43Country())?2:0)+(d.includes(v43Type(req.kind,section))?3:0);
-   if(!best||score>best.score)best={title:h.title,desc:d,score};
-  }}
- }catch(e){}
- if(best){try{const pg=await sharedPage(best.title);if(pg){const d=String(pg.extract||best.desc).replace(/\s+/g,' ').trim();const ph=pg.thumbnail?.source||'';if(d.length>=45&&!v43Bad(req,pg.title,d)&&ph&&v13PhotoOkay(ph,pg.title,req.kind)&&v14PhotoIntentOkay(section,name,ph,pg.title)){v={name,title:pg.title,entityId:pg.pageprops?.wikibase_item||'',pageId:pg.pageid||'',desc:v13CardDescription(d,name,req.kind),photo:ph,photos:[ph],sources:['V43 사전검증']};v43Write(section,name,v);V43_SESSION.set(sk,v);return v}}}catch(e){}}
- V43_SESSION.set(sk,null);return null;
-}
-function v43StudyButton(section,name,host){
- const b=document.createElement('button');b.className='rep-card-btn-v5 cannot-make';b.textContent='🔎 '+cardInputName(name);
- b.onclick=()=>manualRepresentative(section,cardInputName(name));host.appendChild(b);
-}
-async function v43BuildPanel(section,panel,names){
- const readyHost=panel.querySelector('.v43-ready'),studyHost=panel.querySelector('.v43-study'),status=panel.querySelector('.v43-status');
- readyHost.innerHTML='';studyHost.innerHTML='';
- let ready=0,done=0;status.textContent=`대표후보를 카드로 미리 검증하고 있어요 · 0/${names.length}`;
- for(const raw of names){
-  const name=v28RepresentativeName(section,raw);let v=null;try{v=await v43Verify(section,name)}catch(e){}
-  done++;
-  if(v?.desc&&v?.photo){
-   ready++;const b=document.createElement('button');b.className='rep-card-btn-v5 can-make';b.textContent='● '+cardInputName(name);
-   b.onclick=()=>openRepresentativePreview(section,cardInputName(name),v,panel);readyHost.appendChild(b);
-  }else v43StudyButton(section,name,studyHost);
-  status.textContent=`검증 ${done}/${names.length} · 바로 만들 수 있는 대표카드 ${ready}개`;
-  await new Promise(r=>setTimeout(r,40));
- }
- panel.querySelector('.v43-study-wrap').style.display=studyHost.children.length?'':'none';
- status.textContent=`완료 · 대표카드 ${ready}개는 모두 바로 만들 수 있어요`+(ready<4?' · 대표카드가 적어 더 공부해볼 대상도 남겼어요':'');
- // Search caches are disposable. Purge after the final success list is built.
- v43PurgeSearchCaches();
-}
-async function renderRepresentativeCardButtonsV5(section){
- const sec=document.getElementById(section);if(!sec)return;
- let old=sec.querySelector('.rep-card-panel-v5');if(old)old.remove();
- const panel=document.createElement('div');panel.className='rep-card-panel-v5 note';panel.dataset.country=String(COUNTRY||'');
- panel.innerHTML='<div class="rep-title-v5">⭐ 바로 만들 수 있는 대표카드</div><div class="v43-status">준비 중…</div><div class="rep-card-buttons-v5 v43-ready"></div><div class="v43-study-wrap" style="margin-top:16px"><div style="font-weight:800;margin-bottom:7px">🔎 더 공부해볼 대상</div><div class="v43-study"></div></div><div class="rep-preview-v5"></div>';
- sec.appendChild(panel);
- const names=parseRepNames(repTextFor(section));
- v43BuildPanel(section,panel,names);
-}
+ return false}
+function v44Candidates(section){const base=parseRepNames(repTextFor(section)),extra=V44_EXTRA_CANDIDATES?.[COUNTRY]?.[section]||[],seen=new Set(),out=[];for(const n of [...base,...extra]){const k=cardInputName(n);if(k&&!seen.has(k)){seen.add(k);out.push(n)}}return out}
+async function v44Verify(section,raw){const name=v28RepresentativeName(section,raw),req=v12Request(section,name),saved=v44Read(section,name);if(saved)return saved;const sk=[COUNTRY,section,name].join('|');if(V44_SESSION.has(sk))return V44_SESSION.get(sk);
+ let v=null;try{v=await sharedResolve(name,req.kind,section)}catch(e){}
+ if(v?.desc&&!v44Wrong(req,v.title||name,v.desc)&&(v.photo||v.photos?.[0])){v.photo=v.photo||v.photos[0];v44Write(section,name,v);V44_SESSION.set(sk,v);return v}
+ const qs=[[name,v44Country(),v44Type(req.kind,section)].filter(Boolean).join(' '),[name,v44Type(req.kind,section)].filter(Boolean).join(' ')];let best=null;
+ for(const q of qs){try{const u='https://ko.wikipedia.org/w/api.php?action=query&list=search&srsearch='+encodeURIComponent(q)+'&srlimit=7&format=json&origin=*';const r=await fetch(u);if(!r.ok)continue;const j=await r.json();for(const h of j.query?.search||[]){let s=null;try{s=await wikiSummaryByTitle(h.title,'ko')}catch(e){}const d=String(s?.text||s?.description||'').replace(/\\s+/g,' ').trim();if(d.length<45||v44Wrong(req,h.title,d))continue;const sem=v37SectionSemanticScore(section,h.title,d);if(sem<3)continue;let score=sem+identityScore(name,h.title);if(d.includes(v44Country()))score+=4;if(d.includes(v44Type(req.kind,section)))score+=3;if(!best||score>best.score)best={title:h.title,desc:d,score}}}catch(e){}if(best&&best.score>=11)break}
+ if(best){try{const pg=await sharedPage(best.title);if(pg){const d=String(pg.extract||best.desc).replace(/\\s+/g,' ').trim(),ph=pg.thumbnail?.source||'';if(d.length>=45&&!v44Wrong(req,pg.title,d)&&ph&&v13PhotoOkay(ph,pg.title,req.kind)&&v14PhotoIntentOkay(section,name,ph,pg.title)){v={name,title:pg.title,entityId:pg.pageprops?.wikibase_item||'',pageId:pg.pageid||'',desc:v13CardDescription(d,name,req.kind),photo:ph,photos:[ph],sources:['V44 대표선정 V3검증'],score:best.score};v44Write(section,name,v);V44_SESSION.set(sk,v);return v}}}catch(e){}}
+ V44_SESSION.set(sk,null);return null}
+async function v44Build(section,panel){const candidates=v44Candidates(section),ready=[],study=[],status=panel.querySelector('.v44-status');status.textContent=`후보 ${candidates.length}개를 V3가 먼저 검증하고 있어요`;
+ for(let i=0;i<candidates.length;i++){const raw=candidates[i],name=v28RepresentativeName(section,raw);let v=null;try{v=await v44Verify(section,raw)}catch(e){};if(v)ready.push({raw,name,v});else study.push({raw,name});status.textContent=`V3 검증 ${i+1}/${candidates.length} · 성공 ${ready.length}개`;if(ready.length>=10)break;await new Promise(r=>setTimeout(r,35))}
+ const chosen=ready.slice(0,10),rh=panel.querySelector('.v44-ready'),sh=panel.querySelector('.v44-study');rh.innerHTML='';sh.innerHTML='';for(const x of chosen){const b=document.createElement('button');b.className='rep-card-btn-v5 can-make';b.textContent='● '+cardInputName(x.name);b.onclick=()=>openRepresentativePreview(section,cardInputName(x.name),x.v,panel);rh.appendChild(b)}
+ // Only failed original/high-value candidates are study suggestions; they are not representatives.
+ for(const x of study.slice(0,6)){const b=document.createElement('button');b.className='rep-card-btn-v5 cannot-make';b.textContent='🔎 '+cardInputName(x.name);b.onclick=()=>manualRepresentative(section,cardInputName(x.name));sh.appendChild(b)}
+ panel.querySelector('.v44-study-wrap').style.display=sh.children.length?'':'none';status.textContent=`완료 · 최종 대표이름 ${chosen.length}개 · 모두 바로 카드로 만들 수 있어요`;v44PurgeSearchCaches()}
+async function renderRepresentativeCardButtonsV5(section){const sec=document.getElementById(section);if(!sec)return;let old=sec.querySelector('.rep-card-panel-v5');if(old)old.remove();const panel=document.createElement('div');panel.className='rep-card-panel-v5 note';panel.dataset.country=String(COUNTRY||'');panel.innerHTML='<div class="rep-title-v5">⭐ V3가 선정한 최종 대표이름</div><div class="v44-status">준비 중…</div><div class="rep-card-buttons-v5 v44-ready"></div><div class="v44-study-wrap" style="margin-top:16px"><div style="font-weight:800;margin-bottom:7px">🔎 대표에서는 빠졌지만 더 공부해볼 대상</div><div class="v44-study"></div></div><div class="rep-preview-v5"></div>';sec.appendChild(panel);v44Build(section,panel)}
 function renderAllRepresentativeCardButtonsV5(){
  // Compatibility helper; render visible sections without resetting their state.
  REP_SECTIONS.forEach(s=>{const el=document.getElementById(s);if(el)renderRepresentativeCardButtonsV5(s)});
@@ -2374,7 +2347,7 @@ openCountry=function(code){
  return r;
 };
 
-try{v43PurgeSearchCaches()}catch(e){}
+try{v44PurgeSearchCaches()}catch(e){}
 window.__MAGIC_V7_DIAGNOSTIC={
  engine:'tested V3 core',
  lessonV23:'Fushimi/Yutoku: representative quality tie-break + exact selected-page photo binding',
