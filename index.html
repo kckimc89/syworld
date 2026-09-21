@@ -121,7 +121,7 @@ body.view-cards #detail .cards .item>.actions{display:none}
 .kbHelp{border-top:1px dashed #ddd;margin-top:14px;padding-top:14px}.kbHelp button{border:0;border-radius:12px;padding:10px 12px;font-weight:800;margin:4px;background:#f0f2f5}
 .kbRank{font-size:12px;background:#eef3f8;border-radius:999px;padding:2px 7px;margin-right:4px}
 </style>
-<button id="kbBtn" onclick="kbOpen()">✨ 대표이름 자체가 완성카드 · V45</button>
+<button id="kbBtn" onclick="kbOpen()">✨ 단순화 시험 · V46</button>
 <div id="kbPanel"><div class="kbWrap">
  <div class="kbHead"><div><b style="font-size:23px">✨ 설명 → 대표 이름 → 카드 만들기</b><div class="kbHint">V5.2는 그대로 두고 새 구조만 별도로 시험합니다.</div></div><button onclick="kbClose()" style="font-size:26px;border:0;background:transparent">✕</button></div>
  <div class="kbBox"><b>🇪🇸 스페인 시험</b><p class="kbHint">이번 판은 구조를 확인하기 위한 스페인 콘텐츠 시험판입니다. 이름은 ‘카드가 잘 만들어지는 순서’가 아니라 대표성과 인지도를 우선해 배열했습니다.</p>
@@ -2356,27 +2356,36 @@ function v45PaintTop(section,chosen,study){
  }
  v45StudyBox(section,study,rep);
 }
-async function v45SelectRepresentatives(section){
+async function v46SelectRepresentatives(section){
  const key=v45SelectedKey(section);if(V45_SELECTED.has(key))return V45_SELECTED.get(key);
- const candidates=v44Candidates(section),ready=[],study=[];
- // V3 participates BEFORE names become representatives.
- for(let i=0;i<candidates.length;i++){
-  const raw=candidates[i],name=v28RepresentativeName(section,raw);let v=null;
-  try{v=await v44Verify(section,raw)}catch(e){}
-  if(v?.desc&&v?.photo)ready.push({raw,name,v});else study.push({raw,name});
-  if(ready.length>=10)break;
-  await new Promise(r=>setTimeout(r,30));
+ const candidates=v44Candidates(section),chosen=[],study=[];
+ for(const raw of candidates){
+   const name=v28RepresentativeName(section,raw),kind=cardInputKind(section,raw);
+   let v=null;
+   // V46: no new verifier, no second semantic engine. Use the proven V3 card maker directly.
+   try{v=await sharedResolve(name,kind,section)}catch(e){}
+   const photo=v?.photo||v?.photos?.[0]||'';
+   if(v?.desc&&photo){
+     v.photo=photo;
+     chosen.push({raw,name,v});
+     if(chosen.length>=8)break;
+   }else{
+     study.push({raw,name});
+   }
+   await new Promise(r=>setTimeout(r,25));
  }
- const chosen=ready.slice(0,10),result={chosen,study};
- V45_SELECTED.set(key,result);v44PurgeSearchCaches();return result;
+ const result={chosen,study};V45_SELECTED.set(key,result);
+ // Search material is disposable; user cards/photos/backups are untouched.
+ try{v44PurgeSearchCaches()}catch(e){}
+ return result;
 }
 async function renderRepresentativeCardButtonsV5(section){
  // V45 deliberately has NO second representative panel.
  const sec=document.getElementById(section);if(!sec)return;
  const old=sec.querySelector('.rep-card-panel-v5');if(old)old.remove();
  const rep=sec.querySelector('.sectionOverview .rep');if(!rep)return;
- rep.innerHTML='<b>대표적으로 알아둘 이름</b><br><span style="opacity:.72">V3가 대표후보를 확인하고 있어요…</span>';
- const {chosen,study}=await v45SelectRepresentatives(section);
+ rep.innerHTML='<b>대표적으로 알아둘 이름</b><br><span style="opacity:.72">대표카드를 준비하고 있어요…</span>';
+ const {chosen,study}=await v46SelectRepresentatives(section);
  if(String(COUNTRY||'')!==v45SelectedKey(section).split('|')[0])return;
  v45PaintTop(section,chosen,study);
 }
