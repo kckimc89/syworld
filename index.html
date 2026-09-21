@@ -121,7 +121,7 @@ body.view-cards #detail .cards .item>.actions{display:none}
 .kbHelp{border-top:1px dashed #ddd;margin-top:14px;padding-top:14px}.kbHelp button{border:0;border-radius:12px;padding:10px 12px;font-weight:800;margin:4px;background:#f0f2f5}
 .kbRank{font-size:12px;background:#eef3f8;border-radius:999px;padding:2px 7px;margin-right:4px}
 </style>
-<button id="kbBtn" onclick="kbOpen()">✨ 새 백과구조 시험 · V37</button>
+<button id="kbBtn" onclick="kbOpen()">✨ 새 백과구조 시험 · V38</button>
 <div id="kbPanel"><div class="kbWrap">
  <div class="kbHead"><div><b style="font-size:23px">✨ 설명 → 대표 이름 → 카드 만들기</b><div class="kbHint">V5.2는 그대로 두고 새 구조만 별도로 시험합니다.</div></div><button onclick="kbClose()" style="font-size:26px;border:0;background:transparent">✕</button></div>
  <div class="kbBox"><b>🇪🇸 스페인 시험</b><p class="kbHint">이번 판은 구조를 확인하기 위한 스페인 콘텐츠 시험판입니다. 이름은 ‘카드가 잘 만들어지는 순서’가 아니라 대표성과 인지도를 우선해 배열했습니다.</p>
@@ -1910,11 +1910,38 @@ async function v36ExactTitleResolve(req){
  if(desc.length<=45||v13NameFit(req.name,p.title)<6)return null;
  const semantic=v37SectionSemanticScore(req.section,p.title,desc);
  const gate=sharedTypeFit(req.kind,p.title,desc)+v13EntityFit(req.name,req.kind,p.title,desc)+v14IntentFit(req.section||req.kind,req.name,p.title,desc,p.thumbnail?.source||'');
- if(gate<4||semantic<3)return null;
+ if(v38WrongDomain(req.section,p.title,desc)||gate<4||semantic<3)return null;
  const photo=(p.thumbnail?.source&&v13PhotoOkay(p.thumbnail.source,p.title,req.kind)&&v14PhotoIntentOkay(req.section||req.kind,req.name,p.thumbnail.source,p.title))?p.thumbnail.source:'';
  return {name:req.name,title:p.title||req.name,entityId:p.pageprops?.wikibase_item||'',pageId:p.pageid||'',
   desc:v13CardDescription(desc,req.name,req.kind),photo,photos:photo?[photo]:[],
   sources:['V36 정확 제목 우선 확인'],score:gate};
+}
+
+// ===== V38 CATEGORY GATE =====
+function v38WrongDomain(section,title,desc){
+ const x=(String(title||'')+' '+String(desc||'')).toLowerCase();
+ const chem=/화학|화합물|분자|원소|산성|황산염|염산|질산|chemical|compound|molecule|sulfate|acid/.test(x);
+ const person=/가수|배우|선수|정치인|작가|인물|출생|사망|singer|actor|athlete|politician/.test(x);
+ const art=/영화|드라마|소설|음반|노래|회화|작품|film|novel|album|song|painting/.test(x);
+ const bio=/동물|포유류|조류|파충류|어류|식물|나무|꽃|학명|species|mammal|plant/.test(x);
+ if(section==='places'&&(chem||person||art))return true;
+ if(section==='animals'&&(chem||person||art)&&!bio)return true;
+ if(section==='food'&&(chem||person||art))return true;
+ if(section==='fruit'&&(chem||person||art))return true;
+ if(section==='singers'&&chem)return true;
+ if(section==='athletes'&&chem)return true;
+ if(section==='people'&&chem)return true;
+ if(section==='art'&&chem)return true;
+ return false;
+}
+function v38SameName(name,title){
+ return v13Norm(cardInputName(name))===v13Norm(String(title||''));
+}
+function v38CandidateAllowed(section,h){
+ const s=h?.summary||{},desc=String(s.text||s.description||'');
+ if(v38WrongDomain(section,h?.title,desc))return false;
+ // Keep candidates with category evidence, or an exact same normalized name.
+ return Number(h?.catScore||0)>0 || v38SameName(h?.queryName||'',h?.title||'');
 }
 
 // ===== V37 SEMANTIC BRIDGE + HOMONYM GUARD =====
@@ -1939,8 +1966,11 @@ async function v37SemanticBridge(req){
  const h=hits[0],sum=h.summary||{},desc=String(sum.text||sum.description||'').replace(/\s+/g,' ').trim();
  if(desc.length<=45)return null;
  const sem=v37SectionSemanticScore(req.section,h.title,desc);
+ const same=v38SameName(req.name,h.title);
  const id=Math.max(Number(h.identity||0),identityScore(req.name,h.title)),ctx=Number(h.contextScore||0);
- if(sem<5||(id<3&&ctx<5))return null;
+ if(v38WrongDomain(req.section,h.title,desc)||sem<5)return null;
+ // Same-name + correct category may auto-promote. Different-name candidates need stronger evidence.
+ if(!same && id<5 && ctx<6)return null;
  let p=null;try{p=await sharedPage(h.title)}catch(e){}
  if(!p)return null;
  const exactDesc=String(p.extract||desc).replace(/\s+/g,' ').trim();
@@ -1954,7 +1984,7 @@ async function v37SemanticBridge(req){
 // ===== V12 ABSOLUTELY ONE REQUEST PATH =====
 function v12Request(section,rawName,forcedKind=''){
  const display=cardInputName(rawName),kind=forcedKind||cardInputKind(section,rawName);
- return {section,rawName:String(rawName||''),name:display,kind,key:['V37-SEMANTIC-SAFE',section,kind,display].join('|')};
+ return {section,rawName:String(rawName||''),name:display,kind,key:['V38-CATEGORY-GATE',section,kind,display].join('|')};
 }
 async function v12ResolveRequest(req){
  try{const c=localStorage.getItem('magic_v27_entity_'+req.key);if(c){const j=JSON.parse(c);if(j&&j.desc)return j}}catch(e){}
@@ -2123,7 +2153,9 @@ async function v22SearchHits(name,section){
     if(ctx.hint&&corpus.includes(ctx.hint))contextScore+=5;
     if(ctx.country&&corpus.includes(ctx.country))contextScore+=ctx.short?4:1;
     if(h.title===ctx.base||h.title===ctx.original)contextScore+=6;
-    out.push({...h,summary:s,catScore:v22SectionScore(section,corpus),identity:Math.max(identityScore(ctx.original,h.title),identityScore(ctx.base,h.title)),contextScore});
+    const catScore=v22SectionScore(section,corpus);
+    if(v38WrongDomain(section,h.title,corpus))continue;
+    out.push({...h,queryName:name,summary:s,catScore,identity:Math.max(identityScore(ctx.original,h.title),identityScore(ctx.base,h.title)),contextScore});
     if(out.length>=20)break;
    }
   }catch(e){}
@@ -2135,7 +2167,10 @@ async function v22SearchHits(name,section){
 async function v22SuggestOtherSection(name,current){let corpus=name;try{const u='https://ko.wikipedia.org/w/api.php?action=query&list=search&srsearch='+encodeURIComponent(name)+'&srlimit=6&format=json&origin=*';const r=await fetch(u);if(r.ok){const j=await r.json();corpus+=' '+(j.query?.search||[]).map(x=>x.title+' '+x.snippet.replace(/<[^>]+>/g,' ')).join(' ')}}catch(e){}const cur=v22SectionScore(current,corpus);let best=null;for(const s of Object.keys(V22_SECTION_LABEL)){if(s===current)continue;const score=v22SectionScore(s,corpus);if(!best||score>best.score)best={section:s,score}}return best&&best.score>=2&&best.score>cur+1?best:null}
 function v22ScrollToSection(section){const el=document.getElementById(section);if(el){el.scrollIntoView({behavior:'smooth',block:'start'});setTimeout(()=>document.getElementById(section+'List')?.querySelector('.item:last-child')?.scrollIntoView({behavior:'smooth',block:'center'}),350)}}
 async function v18ManualAssist(section,typedName){const name=String(typedName||'').trim();if(!name)return;const panel=document.getElementById(section)?.querySelector('.rep-card-panel-v5');if(!panel)return alert('검색도움 화면을 준비하지 못했습니다.');const pv=panel.querySelector('.rep-preview-v5');if(!pv)return;const other=await v22SuggestOtherSection(name,section);if(other){pv.innerHTML=`<div class="preview-card"><h3>🧭 카테고리를 확인해 주세요</h3><p><b>${esc(name)}</b>은(는) ‘${esc(v22SectionLabel(section))}’보다 ‘${esc(v22SectionLabel(other.section))}’에 더 가까워 보여요.</p><div class="v22-category-choice"><button class="v22-move">📂 ${esc(v22SectionLabel(other.section))}에서 찾아보기</button><button class="v22-stay">🔎 ${esc(v22SectionLabel(section))}에서 계속 찾기</button><button class="rep-close-v5">닫기</button></div></div>`;pv.querySelector('.v22-move').onclick=()=>{pv.innerHTML='';document.getElementById(other.section)?.scrollIntoView({behavior:'smooth',block:'start'});setTimeout(()=>v18ManualAssist(other.section,name),300)};pv.querySelector('.v22-stay').onclick=()=>v22ShowAssistResults(section,name,pv);pv.querySelector('.rep-close-v5').onclick=()=>pv.innerHTML='';return}return v22ShowAssistResults(section,name,pv)}
-async function v22ShowAssistResults(section,name,pv){pv.innerHTML=`<div class="preview-card">🔎 <b>${esc(v22SectionLabel(section))}</b> 범위에서 후보를 찾고 있어요…</div>`;const hits=await v22SearchHits(name,section);if(!hits.length){pv.innerHTML='<div class="preview-card"><b>관련 후보를 찾지 못했습니다.</b><button class="rep-close-v5">닫기</button></div>';pv.querySelector('.rep-close-v5').onclick=()=>pv.innerHTML='';return}const good=hits.filter(h=>h.catScore>0),shown=(good.length>=3?good:hits).slice(0,8);const renderList=()=>{pv.innerHTML=`<div class="preview-card"><h3>🔎 ${esc(v22SectionLabel(section))} 후보</h3><p>하나씩 확인하고, 맞지 않으면 <b>← 다른 후보 보기</b>로 돌아오세요.</p><div class="v22-suggestions"></div><button class="rep-close-v5">닫기</button></div>`;const host=pv.querySelector('.v22-suggestions');for(const h of shown){const b=document.createElement('button');b.className='rep-card-btn-v5 can-make';b.textContent=h.title;host.appendChild(b);b.onclick=()=>preview(h)}pv.querySelector('.rep-close-v5').onclick=()=>pv.innerHTML=''};const preview=async h=>{pv.innerHTML='<div class="preview-card">🔎 선택한 대상을 확인하고 있어요…</div>';let exact=null;try{exact=await v23ExactSelectedSnapshot(h.title,section)}catch(e){};let found=exact?{desc:exact.desc}:null;if(!found&&h.summary?.text&&h.catScore>0)found={desc:h.summary.text.split(/(?<=[.!?。！？])\s+/).slice(0,4).join(' ')};if(!found){pv.innerHTML='<div class="preview-card"><b>이 카테고리의 항목으로 충분히 확인하지 못했습니다.</b><p>비슷한 이름은 보여드리지만, 정확한 대상을 확인하지 못한 카드는 억지로 만들지 않습니다.</p><button class="v22-back">← 다른 후보 보기</button></div>';pv.querySelector('.v22-back').onclick=renderList;return}let photo=exact?.photo||'';pv.innerHTML=`<div class="preview-card"><h3>${esc(h.title)}</h3><p>${esc(found.desc)}</p>${photo?`<div class="v3-photo-choices"><img src="${esc(photo)}" alt=""></div>`:''}<div class="preview-actions"><button class="v22-back">← 다른 후보 보기</button><button class="v18-manual-save">⭐ 이 항목 추가</button><button class="rep-close-v5">닫기</button></div></div>`;pv.querySelector('.v22-back').onclick=renderList;pv.querySelector('.rep-close-v5').onclick=()=>pv.innerHTML='';pv.querySelector('.v18-manual-save').onclick=async()=>{const a=getCustom(section);if(hasIdentity(h.title,a))return alert('이미 같은 항목이 있습니다.');const item={id:newItemId(),name:h.title,desc:found.desc,emoji:'⭐',source:'manual',photoVerified:!!photo,photoRemote:photo,entityId:String(exact?.entityId||''),entityTitle:String(exact?.title||h.title),pageId:exact?.pageId==null?'':String(exact.pageId)};try{
+async function v22ShowAssistResults(section,name,pv){pv.innerHTML=`<div class="preview-card">🔎 <b>${esc(v22SectionLabel(section))}</b> 범위에서 후보를 찾고 있어요…</div>`;const hits=await v22SearchHits(name,section);if(!hits.length){pv.innerHTML='<div class="preview-card"><b>관련 후보를 찾지 못했습니다.</b><button class="rep-close-v5">닫기</button></div>';pv.querySelector('.rep-close-v5').onclick=()=>pv.innerHTML='';return}const good=hits.filter(h=>!v38WrongDomain(section,h.title,String(h.summary?.text||h.summary?.description||''))&&(h.catScore>0||v38SameName(name,h.title)));
+const shown=good.slice(0,8);
+if(!shown.length){pv.innerHTML='<div class="preview-card"><b>이 카테고리에 맞는 후보를 충분히 확인하지 못했습니다.</b><p>관련 없는 항목은 보여주지 않았습니다. 이름을 조금 다르게 입력해 다시 찾아볼 수 있습니다.</p><button class="rep-close-v5">닫기</button></div>';pv.querySelector('.rep-close-v5').onclick=()=>pv.innerHTML='';return}
+const renderList=()=>{pv.innerHTML=`<div class="preview-card"><h3>🔎 ${esc(v22SectionLabel(section))} 후보</h3><p>하나씩 확인하고, 맞지 않으면 <b>← 다른 후보 보기</b>로 돌아오세요.</p><div class="v22-suggestions"></div><button class="rep-close-v5">닫기</button></div>`;const host=pv.querySelector('.v22-suggestions');for(const h of shown){const b=document.createElement('button');b.className='rep-card-btn-v5 can-make';b.textContent=h.title;host.appendChild(b);b.onclick=()=>preview(h)}pv.querySelector('.rep-close-v5').onclick=()=>pv.innerHTML=''};const preview=async h=>{pv.innerHTML='<div class="preview-card">🔎 선택한 대상을 확인하고 있어요…</div>';let exact=null;try{exact=await v23ExactSelectedSnapshot(h.title,section)}catch(e){};let found=exact?{desc:exact.desc}:null;if(!found&&h.summary?.text&&h.catScore>0)found={desc:h.summary.text.split(/(?<=[.!?。！？])\s+/).slice(0,4).join(' ')};if(!found){pv.innerHTML='<div class="preview-card"><b>이 카테고리의 항목으로 충분히 확인하지 못했습니다.</b><p>비슷한 이름은 보여드리지만, 정확한 대상을 확인하지 못한 카드는 억지로 만들지 않습니다.</p><button class="v22-back">← 다른 후보 보기</button></div>';pv.querySelector('.v22-back').onclick=renderList;return}let photo=exact?.photo||'';pv.innerHTML=`<div class="preview-card"><h3>${esc(h.title)}</h3><p>${esc(found.desc)}</p>${photo?`<div class="v3-photo-choices"><img src="${esc(photo)}" alt=""></div>`:''}<div class="preview-actions"><button class="v22-back">← 다른 후보 보기</button><button class="v18-manual-save">⭐ 이 항목 추가</button><button class="rep-close-v5">닫기</button></div></div>`;pv.querySelector('.v22-back').onclick=renderList;pv.querySelector('.rep-close-v5').onclick=()=>pv.innerHTML='';pv.querySelector('.v18-manual-save').onclick=async()=>{const a=getCustom(section);if(hasIdentity(h.title,a))return alert('이미 같은 항목이 있습니다.');const item={id:newItemId(),name:h.title,desc:found.desc,emoji:'⭐',source:'manual',photoVerified:!!photo,photoRemote:photo,entityId:String(exact?.entityId||''),entityTitle:String(exact?.title||h.title),pageId:exact?.pageId==null?'':String(exact.pageId)};try{
  const ok=setCustom(section,[...a,item]);
  const saved=getCustom(section).some(x=>x.id===item.id);
  if(ok!==true||!saved)throw new Error('assisted save verification failed');
