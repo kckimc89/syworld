@@ -2192,41 +2192,6 @@ openCountry=function(code){
  return r;
 };
 
-
-// ===== NS4: NEW ENCYCLOPEDIA STRUCTURE — direct bridge into the proven V28 card path =====
-// Important: this layer does NOT create or save cards itself.
-// It only feeds a new name through precheckRepresentative() and openRepresentativePreview(),
-// so the final save is exactly the same V28 save button/path as the original representative cards.
-const NS4_CANDIDATES={
- ES:{food:['파에야','감바스 알 아히요','토르티야 에스파뇰라','가스파초','추로스'],fruit:['오렌지','포도','레몬','무화과','복숭아'],places:['사그라다 파밀리아','알함브라 궁전','구엘 공원','세비야 대성당','프라도 미술관'],culture:['플라멩코','산 페르민 축제','라 토마티나','세비야 페리아','카스텔']},
- JP:{food:['스시','라멘','우동','오코노미야키','덴푸라'],fruit:['귤','사과','감','포도','복숭아'],places:['후지산','기요미즈데라','히메지성','도다이지','도쿄 스카이트리'],culture:['다도','가부키','스모','하나미','오리가미']},
- US:{food:['햄버거','핫도그','바비큐','애플파이','클램차우더'],fruit:['사과','오렌지','포도','블루베리','크랜베리'],places:['자유의 여신상','그랜드 캐니언','옐로스톤 국립공원','금문교','러시모어산'],culture:['재즈','브로드웨이 뮤지컬','추수감사절','로데오','할리우드 영화']}
-};
-function ns4Ensure(section){
- const sec=document.getElementById(section); if(!sec||sec.querySelector('.ns4-box'))return;
- const box=document.createElement('div'); box.className='ns4-box note';
- box.style.cssText='margin:14px 0;padding:14px;border:2px solid #9db8d8;border-radius:16px;background:#f7fbff';
- const names=NS4_CANDIDATES?.[COUNTRY]?.[section]||[];
- box.innerHTML=`<div style="font-weight:900;font-size:19px">🪄 새 백과구조 시험 NS4</div><p class="note">새 후보도 <b>V28 원래 카드 만들기와 똑같은 저장 경로</b>를 사용합니다.</p><div class="ns4-buttons"></div><div class="ns4-status note"></div>`;
- const host=box.querySelector('.ns4-buttons'), status=box.querySelector('.ns4-status');
- names.forEach(name=>{const b=document.createElement('button');b.type='button';b.className='rep-card-btn-v5';b.textContent='○ '+name;b.style.margin='4px';host.appendChild(b);b.onclick=async()=>{
-   b.disabled=true;status.textContent='🔎 '+name+'을(를) V28 엔진으로 확인하고 있어요…';
-   let r=null;try{r=await precheckRepresentative(section,name)}catch(e){console.error('[NS4 precheck]',e)}
-   b.disabled=false;
-   if(!r?.ok){status.textContent='○ 자동확인이 어려워 V28 검색도움으로 엽니다.';manualRepresentative(section,name);return;}
-   status.textContent='● 확인 완료. 아래 미리보기의 「선택한 사진으로 카드 만들기」를 누르세요.';
-   let panel=sec.querySelector('.rep-card-panel-v5');if(!panel){await renderRepresentativeCardButtonsV5(section);panel=sec.querySelector('.rep-card-panel-v5')}
-   if(!panel){status.textContent='카드 패널을 열지 못했습니다.';return}
-   openRepresentativePreview(section,name,r.verified,panel);
-   panel.scrollIntoView({behavior:'smooth',block:'center'});
- }});
- const panel=sec.querySelector('.rep-card-panel-v5'); if(panel)sec.insertBefore(box,panel); else sec.appendChild(box);
-}
-function ns4AttachAll(){REP_SECTIONS.forEach(ns4Ensure)}
-const __ns4OpenCountry=openCountry;
-openCountry=function(code){const r=__ns4OpenCountry(code);setTimeout(ns4AttachAll,180);return r};
-document.addEventListener('DOMContentLoaded',()=>setTimeout(ns4AttachAll,250));
-
 window.__MAGIC_V7_DIAGNOSTIC={
  engine:'tested V3 core',
  lessonV23:'Fushimi/Yutoku: representative quality tie-break + exact selected-page photo binding',
@@ -2238,5 +2203,78 @@ window.__MAGIC_V7_DIAGNOSTIC={
  aliasMode:'canonical + reverse alias group',
  availability:'V3 result with description + photo'
 };
+
+
+// ===== NS5 NEW ENCYCLOPEDIA STRUCTURE: FRESH CANDIDATE DISCOVERY =====
+// Existing representative lists are NEVER used to generate candidates here.
+// They are read only after discovery, to remove duplicates.
+const NS5_SECTION_TERMS={
+ food:['전통 음식','지역 요리','대표 요리','향토 음식'], fruit:['재배 과일','대표 과일','과일 농업'],
+ animals:['고유 동물 식물','야생동물 식물','대표 생물'], places:['역사 명소','자연 명소','문화유산','관광 명소'],
+ culture:['전통 문화','축제 풍습','무형문화유산','생활 문화'], singers:['가수 음악가','대중가수','성악가 음악인'],
+ athletes:['운동선수 스포츠 스타','올림픽 선수','대표 선수'], people:['역사 인물','과학자 예술가 사상가','유명 인물'],
+ art:['미술 작품 문학 작품','대표 예술작품','회화 조각 문학 영화']
+};
+function ns5ExistingNames(section){
+ const a=[];
+ try{a.push(...(CANDIDATES?.[COUNTRY]?.[section]||[]))}catch(e){}
+ try{a.push(...parseRepNames(repTextFor(section)))}catch(e){}
+ try{a.push(...getCustom(section).map(x=>x.name))}catch(e){}
+ return new Set(a.map(x=>normalizeItemName(cardInputName(x))).filter(Boolean));
+}
+async function ns5WikiFreshCandidates(section){
+ const country=COUNTRIES?.[COUNTRY]?.name||subjectProfile(COUNTRY)?.label||COUNTRY;
+ const terms=NS5_SECTION_TERMS[section]||[section];
+ const found=[], seen=new Set();
+ for(const term of terms){
+  const queries=[`${country} ${term}`,`${term} ${country}`];
+  for(const q of queries){
+   try{
+    const u='https://ko.wikipedia.org/w/api.php?action=query&list=search&srsearch='+encodeURIComponent(q)+'&srlimit=25&format=json&origin=*';
+    const r=await fetch(u); if(!r.ok)continue; const j=await r.json();
+    for(const h of j.query?.search||[]){
+     let n=candidateDisplayName(h.title||''); const k=normalizeItemName(n);
+     if(!n||!k||seen.has(k)||/목록|분류|틀:|위키백과|포털/.test(n))continue;
+     seen.add(k); found.push({name:n,query:q});
+    }
+   }catch(e){}
+  }
+ }
+ return found;
+}
+async function ns5DiscoverAndVerify(section,panel){
+ const status=panel.querySelector('.ns5-status'), list=panel.querySelector('.ns5-list');
+ status.textContent='새 후보를 찾고 있습니다… 기존 대표목록은 후보 생성에 사용하지 않습니다.'; list.innerHTML='';
+ const existing=ns5ExistingNames(section);
+ let raw=await ns5WikiFreshCandidates(section);
+ raw=raw.filter(x=>!existing.has(normalizeItemName(cardInputName(x.name))));
+ status.textContent=`새 후보 ${raw.length}개 발견 · V3 검증을 시작합니다…`;
+ const good=[];
+ for(let i=0;i<raw.length && good.length<20;i++){
+  const x=raw[i]; status.textContent=`V3 검증 ${i+1}/${raw.length} · 성공 ${good.length}개`;
+  let r=null; try{r=await precheckRepresentative(section,x.name)}catch(e){}
+  if(r?.ok && r.verified?.desc){
+   good.push({name:x.name,verified:r.verified});
+   const b=document.createElement('button'); b.type='button'; b.className='rep-card-btn-v5 can-make';
+   b.textContent='● '+x.name; b.title='기존 대표목록 밖에서 새로 발견되어 V3 검증을 통과한 후보입니다.';
+   b.onclick=()=>openRepresentativePreview(section,x.name,r.verified,panel);
+   list.appendChild(b);
+  }
+  await new Promise(res=>setTimeout(res,50));
+ }
+ status.textContent=good.length?`완료: 기존 대표이름과 겹치지 않는 V3 성공 후보 ${good.length}개`:'새 후보 중 V3 검증을 통과한 항목이 없습니다. 다시 찾기를 눌러 보세요.';
+}
+function ns5AttachFreshPanel(section){
+ const sec=document.getElementById(section); if(!sec)return;
+ let p=sec.querySelector('.ns5-fresh-panel'); if(p)return;
+ p=document.createElement('div'); p.className='ns5-fresh-panel rep-card-panel-v5 note';
+ p.innerHTML='<div class="rep-title-v5">🪄 새 백과구조 NS5 — 기존 목록 밖에서 찾기</div><div style="margin:6px 0">카테고리 설명을 바탕으로 웹에서 새 대상을 찾고, 기존 대표이름과 겹치는 항목을 버린 뒤 V3로 설명·사진을 검증합니다.</div><button type="button" class="add-btn ns5-run">✨ 새로운 후보 찾기</button><div class="ns5-status" style="margin:8px 0;font-weight:800"></div><div class="ns5-list rep-card-buttons-v5"></div><div class="rep-preview-v5"></div>';
+ sec.appendChild(p); p.querySelector('.ns5-run').onclick=()=>ns5DiscoverAndVerify(section,p);
+}
+function ns5AttachAll(){REP_SECTIONS.forEach(ns5AttachFreshPanel)}
+const __ns5OpenCountry=openCountry;
+openCountry=function(code){const r=__ns5OpenCountry(code);setTimeout(ns5AttachAll,160);return r};
+setTimeout(ns5AttachAll,250);
+window.NS5={discover:ns5DiscoverAndVerify,existing:ns5ExistingNames};
 </script>
 <div id="v21Modal" class="v21-modal hidden" role="dialog" aria-modal="true"><div class="v21-big"><div id="v21BigContent"></div><div class="v21-big-nav"><button id="v21Prev">← 이전</button><button id="v21Close">작게 보기</button><button id="v21Next">다음 →</button></div></div></div></body></html>
