@@ -141,7 +141,6 @@ const KB={
  names:['게르니카','시녀들','1808년 5월 3일','기억의 지속','쾌락의 정원','옷을 입은 마하','옷을 벗은 마하','십자가의 성 요한의 그리스도','아비뇽의 처녀들','성모 승천 (엘 그레코)']}
 };
 let kbCurrent='';
-const KB_VERIFIED=new Map();
 function kbOpen(){document.getElementById('kbPanel').style.display='block'}
 function kbClose(){document.getElementById('kbPanel').style.display='none'}
 function kbEsc(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
@@ -179,25 +178,9 @@ async function kbCheck(type,i,btn){
  btn.classList.remove('ok','help');btn.classList.add(possible?'ok':'help');
  btn.querySelector('small').textContent=possible?'⭐ 카드 만들 수 있어요':'🧩 내가 추가하도록 도와줘';
  if(possible){
-  KB_VERIFIED.set(type+'|'+name,best);
-  pv.innerHTML=`<div class="kbBox kbPreview"><h3>⭐ ${kbEsc(name)} 카드 미리보기</h3>${best.photo?`<img src="${best.photo}" alt="">`:''}<p>${kbEsc(best.desc.slice(0,500))}</p><p class="kbHint">V28 공통 검색엔진에서 확인했습니다. 아래 버튼은 별도 저장방식을 만들지 않고 V28의 원래 카드 만들기 화면으로 이동합니다.</p><button style="border:0;border-radius:14px;padding:13px 18px;background:#5b43c7;color:white;font-weight:900;font-size:17px" onclick="kbMakeWithV28('${type}',${i})">⭐ V28 원래 방식으로 카드 만들기</button></div>`;
+  pv.innerHTML=`<div class="kbBox kbPreview"><h3>⭐ ${kbEsc(name)} 카드 미리보기</h3>${best.photo?`<img src="${best.photo}" alt="">`:''}<p>${kbEsc(best.desc.slice(0,500))}</p><p class="kbHint">나라 화면과 완전히 같은 검색 함수를 사용합니다.</p></div>`;
  }else kbHelp(name,type,null,pv);
 }
-
-async function kbMakeWithV28(type,i){
- const name=KB[type].names[i], verified=KB_VERIFIED.get(type+'|'+name);
- if(!verified||!verified.desc){alert('카드 자료를 다시 확인해 주세요.');return;}
- const section=kbSection(type);
- kbClose();
- // 새 구조는 저장 엔진을 만들지 않는다. 스페인 나라 화면을 연 뒤 V28 원래 preview/save 함수를 그대로 호출한다.
- openCountry('ES');
- await renderRepresentativeCardButtonsV5(section);
- const panel=document.getElementById(section)?.querySelector('.rep-card-panel-v5');
- if(!panel){alert('V28 카드 만들기 화면을 열지 못했습니다.');return;}
- openRepresentativePreview(section,name,verified,panel);
- setTimeout(()=>panel.scrollIntoView({behavior:'smooth',block:'center'}),50);
-}
-
 function kbHelp(name,type,best,pv){
  const desc=best?.desc?kbEsc(best.desc.slice(0,260)):'자동으로 믿을 만한 카드 자료를 충분히 확보하지 못했습니다.';
  pv.innerHTML=`<div class="kbBox"><h3>🧩 ${kbEsc(name)} — 중요한 이름은 버리지 않아요</h3><p>${desc}</p><p><b>자동 카드가 어려워도 이 이름은 백과 목록에 그대로 남습니다.</b></p><div class="kbHelp"><b>내가 카드 만들기</b><p class="kbHint">아이와 함께 자료를 보완할 수 있도록 다음 기능을 연결할 예정입니다.</p><button onclick="kbCopyName('${kbEsc(name)}')">① 이름 복사</button><button onclick="kbOpenOriginalAdd('${kbEsc(name)}')">② V5.2 직접추가로 이동</button><p class="kbHint">완성판에서는 사진 선택 → 짧은 설명 입력/보완 → 미리보기 → 저장 순서의 ‘도와주는 카드 만들기’ 화면으로 확장합니다.</p></div></div>`;
@@ -2208,6 +2191,41 @@ openCountry=function(code){
  setTimeout(()=>{renderCountryOverviews();renderAllRepresentativeCardButtonsV5();REP_SECTIONS.forEach(v26RefreshOverviewRep)},80);
  return r;
 };
+
+
+// ===== NS4: NEW ENCYCLOPEDIA STRUCTURE — direct bridge into the proven V28 card path =====
+// Important: this layer does NOT create or save cards itself.
+// It only feeds a new name through precheckRepresentative() and openRepresentativePreview(),
+// so the final save is exactly the same V28 save button/path as the original representative cards.
+const NS4_CANDIDATES={
+ ES:{food:['파에야','감바스 알 아히요','토르티야 에스파뇰라','가스파초','추로스'],fruit:['오렌지','포도','레몬','무화과','복숭아'],places:['사그라다 파밀리아','알함브라 궁전','구엘 공원','세비야 대성당','프라도 미술관'],culture:['플라멩코','산 페르민 축제','라 토마티나','세비야 페리아','카스텔']},
+ JP:{food:['스시','라멘','우동','오코노미야키','덴푸라'],fruit:['귤','사과','감','포도','복숭아'],places:['후지산','기요미즈데라','히메지성','도다이지','도쿄 스카이트리'],culture:['다도','가부키','스모','하나미','오리가미']},
+ US:{food:['햄버거','핫도그','바비큐','애플파이','클램차우더'],fruit:['사과','오렌지','포도','블루베리','크랜베리'],places:['자유의 여신상','그랜드 캐니언','옐로스톤 국립공원','금문교','러시모어산'],culture:['재즈','브로드웨이 뮤지컬','추수감사절','로데오','할리우드 영화']}
+};
+function ns4Ensure(section){
+ const sec=document.getElementById(section); if(!sec||sec.querySelector('.ns4-box'))return;
+ const box=document.createElement('div'); box.className='ns4-box note';
+ box.style.cssText='margin:14px 0;padding:14px;border:2px solid #9db8d8;border-radius:16px;background:#f7fbff';
+ const names=NS4_CANDIDATES?.[COUNTRY]?.[section]||[];
+ box.innerHTML=`<div style="font-weight:900;font-size:19px">🪄 새 백과구조 시험 NS4</div><p class="note">새 후보도 <b>V28 원래 카드 만들기와 똑같은 저장 경로</b>를 사용합니다.</p><div class="ns4-buttons"></div><div class="ns4-status note"></div>`;
+ const host=box.querySelector('.ns4-buttons'), status=box.querySelector('.ns4-status');
+ names.forEach(name=>{const b=document.createElement('button');b.type='button';b.className='rep-card-btn-v5';b.textContent='○ '+name;b.style.margin='4px';host.appendChild(b);b.onclick=async()=>{
+   b.disabled=true;status.textContent='🔎 '+name+'을(를) V28 엔진으로 확인하고 있어요…';
+   let r=null;try{r=await precheckRepresentative(section,name)}catch(e){console.error('[NS4 precheck]',e)}
+   b.disabled=false;
+   if(!r?.ok){status.textContent='○ 자동확인이 어려워 V28 검색도움으로 엽니다.';manualRepresentative(section,name);return;}
+   status.textContent='● 확인 완료. 아래 미리보기의 「선택한 사진으로 카드 만들기」를 누르세요.';
+   let panel=sec.querySelector('.rep-card-panel-v5');if(!panel){await renderRepresentativeCardButtonsV5(section);panel=sec.querySelector('.rep-card-panel-v5')}
+   if(!panel){status.textContent='카드 패널을 열지 못했습니다.';return}
+   openRepresentativePreview(section,name,r.verified,panel);
+   panel.scrollIntoView({behavior:'smooth',block:'center'});
+ }});
+ const panel=sec.querySelector('.rep-card-panel-v5'); if(panel)sec.insertBefore(box,panel); else sec.appendChild(box);
+}
+function ns4AttachAll(){REP_SECTIONS.forEach(ns4Ensure)}
+const __ns4OpenCountry=openCountry;
+openCountry=function(code){const r=__ns4OpenCountry(code);setTimeout(ns4AttachAll,180);return r};
+document.addEventListener('DOMContentLoaded',()=>setTimeout(ns4AttachAll,250));
 
 window.__MAGIC_V7_DIAGNOSTIC={
  engine:'tested V3 core',
