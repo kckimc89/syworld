@@ -121,7 +121,7 @@ body.view-cards #detail .cards .item>.actions{display:none}
 .kbHelp{border-top:1px dashed #ddd;margin-top:14px;padding-top:14px}.kbHelp button{border:0;border-radius:12px;padding:10px 12px;font-weight:800;margin:4px;background:#f0f2f5}
 .kbRank{font-size:12px;background:#eef3f8;border-radius:999px;padding:2px 7px;margin-right:4px}
 </style>
-<button id="kbBtn" onclick="kbOpen()">✨ 새 백과구조 시험</button>
+<button id="kbBtn" onclick="kbOpen()">✨ 새 백과구조 시험 · V35</button>
 <div id="kbPanel"><div class="kbWrap">
  <div class="kbHead"><div><b style="font-size:23px">✨ 설명 → 대표 이름 → 카드 만들기</b><div class="kbHint">V5.2는 그대로 두고 새 구조만 별도로 시험합니다.</div></div><button onclick="kbClose()" style="font-size:26px;border:0;background:transparent">✕</button></div>
  <div class="kbBox"><b>🇪🇸 스페인 시험</b><p class="kbHint">이번 판은 구조를 확인하기 위한 스페인 콘텐츠 시험판입니다. 이름은 ‘카드가 잘 만들어지는 순서’가 아니라 대표성과 인지도를 우선해 배열했습니다.</p>
@@ -1368,7 +1368,7 @@ US:{
 
 function renderCountryOverviews(){
  document.querySelectorAll('.sectionOverview').forEach(e=>e.remove());
- const data=COUNTRY_OVERVIEWS[COUNTRY]; if(!data)return;
+ const data=v35OverviewData(COUNTRY); if(!data)return;
  const map={food:'food',fruit:'fruit',animals:'animals',places:'places',culture:'culture',singers:'singers',athletes:'athletes',people:'people',art:'art'};
  for(const [key,id] of Object.entries(map)){
    const sec=document.getElementById(id), d=data[key]; if(!sec||!d)continue;
@@ -1384,7 +1384,9 @@ function renderCountryOverviews(){
 // 대표 이름을 만드는 순간, 일반적으로 과일로 배우는 대상은 과일 카테고리로 먼저 배정한다.
 const CATEGORY_FIRST_RULES={
  fruitWords:['사과','배','포도','오렌지','귤','감','복숭아','자두','살구','체리','딸기','블루베리','크랜베리','라즈베리','레몬','라임','자몽','유자','무화과','석류','수박','멜론','참외','바나나','망고','파인애플','키위','아보카도','파파야','코코넛','대추야자'],
- plantIdentityWords:['올리브나무','코르크참나무','홀름참나무','참나무','단풍나무','삼나무','소나무','대나무','세쿼이아','레드우드','조슈아트리','선인장','라벤더','벚나무','매화'],
+ plantIdentityWords:['올리브나무','코르크참나무','홀름참나무','참나무','단풍나무','삼나무','소나무','대나무','세쿼이아','레드우드','조슈아트리','선인장','라벤더','벚나무','매화']
+};
+const V35_EXPANSION_OVERVIEWS={
 CN:{
  fruit:['🍑 과일','중국은 국토가 넓고 기후가 다양해 여러 과일이 재배됩니다. 복숭아와 배는 오랜 재배 역사를 가지고 있으며, 남부의 따뜻한 지역에서는 리치와 용안 같은 과일도 자랍니다. 지역에 따라 감귤류와 대추도 중요한 과일입니다.','복숭아 · 배 · 리치 · 용안 · 귤 · 대추'],
  food:['🍽️ 음식과 식생활','중국 음식은 지역에 따라 재료와 조리법이 크게 다릅니다. 북쪽에서는 밀을 이용한 면과 만두가 많고, 남쪽에서는 쌀을 많이 먹습니다. 쓰촨의 매운 음식, 광둥의 딤섬, 베이징의 오리요리처럼 지역을 대표하는 음식이 다양합니다.','베이징 카오야 · 자오쯔 · 딤섬 · 마파두부 · 훠궈 · 탄탄면 · 샤오룽바오 · 궁바오지딩'],
@@ -1441,6 +1443,15 @@ IN:{
  art:['🎨 예술작품','인도의 예술은 조각·회화·건축·문학·공예에서 매우 다양한 전통을 보여줍니다. 종교와 궁정문화, 지역의 생활이 작품에 깊이 반영되어 있습니다.','《아잔타 석굴 벽화》 · 《춤추는 소녀》 · 《사르나트 사자주두》 · 《바라트 마타》 · 《샤쿤탈라》']
 }
 };
+
+function v35OverviewData(code){
+ const native=(typeof COUNTRY_OVERVIEWS!=='undefined'&&COUNTRY_OVERVIEWS[code])||null;
+ const extra=V35_EXPANSION_OVERVIEWS[code]||null;
+ // Existing V28 countries always use their untouched native data.
+ // New countries use the isolated expansion data.
+ return native||extra;
+}
+
 function normalizeRepresentativeName(name){return String(name||'').trim().replace(/\s+/g,' ')}
 function classifyRepresentativeName(name,suggestedCategory){
  const n=normalizeRepresentativeName(name);
@@ -1795,7 +1806,7 @@ const REP_SECTIONS=['food','fruit','animals','places','culture','singers','athle
 const repAvailabilityCache=new Map();
 
 function repTextFor(section){
- const ov=(typeof COUNTRY_OVERVIEWS!=='undefined' && COUNTRY_OVERVIEWS[COUNTRY] && COUNTRY_OVERVIEWS[COUNTRY][section]);
+ const __v35d=v35OverviewData(COUNTRY); const ov=(__v35d&&__v35d[section]);
  if(!ov)return '';
  if(Array.isArray(ov)) return ov[2]||'';
  return ov.names||'';
@@ -2258,6 +2269,5 @@ window.__MAGIC_V7_DIAGNOSTIC={
  aliasMode:'canonical + reverse alias group',
  availability:'V3 result with description + photo'
 };
-window.__V34_SAFE_EXPANSION={base:'V28-fixed',countries:['CN','FR','EG','BR','IN'],patch:'overview+home-filter-only'};
 </script>
 <div id="v21Modal" class="v21-modal hidden" role="dialog" aria-modal="true"><div class="v21-big"><div id="v21BigContent"></div><div class="v21-big-nav"><button id="v21Prev">← 이전</button><button id="v21Close">작게 보기</button><button id="v21Next">다음 →</button></div></div></div></body></html>
