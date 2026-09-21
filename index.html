@@ -121,7 +121,7 @@ body.view-cards #detail .cards .item>.actions{display:none}
 .kbHelp{border-top:1px dashed #ddd;margin-top:14px;padding-top:14px}.kbHelp button{border:0;border-radius:12px;padding:10px 12px;font-weight:800;margin:4px;background:#f0f2f5}
 .kbRank{font-size:12px;background:#eef3f8;border-radius:999px;padding:2px 7px;margin-right:4px}
 </style>
-<button id="kbBtn" onclick="kbOpen()">✨ 새 백과구조 시험 · V36</button>
+<button id="kbBtn" onclick="kbOpen()">✨ 새 백과구조 시험 · V37</button>
 <div id="kbPanel"><div class="kbWrap">
  <div class="kbHead"><div><b style="font-size:23px">✨ 설명 → 대표 이름 → 카드 만들기</b><div class="kbHint">V5.2는 그대로 두고 새 구조만 별도로 시험합니다.</div></div><button onclick="kbClose()" style="font-size:26px;border:0;background:transparent">✕</button></div>
  <div class="kbBox"><b>🇪🇸 스페인 시험</b><p class="kbHint">이번 판은 구조를 확인하기 위한 스페인 콘텐츠 시험판입니다. 이름은 ‘카드가 잘 만들어지는 순서’가 아니라 대표성과 인지도를 우선해 배열했습니다.</p>
@@ -1908,18 +1908,53 @@ async function v36ExactTitleResolve(req){
  if(!p)return null;
  const desc=String(p.extract||'').replace(/\s+/g,' ').trim();
  if(desc.length<=45||v13NameFit(req.name,p.title)<6)return null;
+ const semantic=v37SectionSemanticScore(req.section,p.title,desc);
  const gate=sharedTypeFit(req.kind,p.title,desc)+v13EntityFit(req.name,req.kind,p.title,desc)+v14IntentFit(req.section||req.kind,req.name,p.title,desc,p.thumbnail?.source||'');
- if(gate<4)return null;
+ if(gate<4||semantic<3)return null;
  const photo=(p.thumbnail?.source&&v13PhotoOkay(p.thumbnail.source,p.title,req.kind)&&v14PhotoIntentOkay(req.section||req.kind,req.name,p.thumbnail.source,p.title))?p.thumbnail.source:'';
  return {name:req.name,title:p.title||req.name,entityId:p.pageprops?.wikibase_item||'',pageId:p.pageid||'',
   desc:v13CardDescription(desc,req.name,req.kind),photo,photos:photo?[photo]:[],
   sources:['V36 정확 제목 우선 확인'],score:gate};
 }
 
+// ===== V37 SEMANTIC BRIDGE + HOMONYM GUARD =====
+function v37SectionSemanticScore(section,title,desc){
+ const x=(String(title||'')+' '+String(desc||'')).toLowerCase();
+ let s=v22SectionScore(section,x);
+ if(section==='places'){
+   if(/산|산맥|공원|국립공원|명소|관광|유적|궁|사원|박물관|도시|자연유산|세계유산|mountain|park|heritage|scenic/.test(x))s+=5;
+   if(/화학|화합물|산성|황산염|분자|원소|chemical|acid|sulfate|molecule/.test(x))s-=14;
+ }
+ if(section==='animals'){
+   if(/동물|포유류|조류|파충류|어류|곰과|고양이과|학명|species|mammal|animal/.test(x))s+=5;
+   if(/식물|화학|영화|노래|회사/.test(x))s-=7;
+ }
+ if(section==='food'&&/음식|요리|먹|면|만두|국수|재료|dish|food|cuisine/.test(x))s+=5;
+ if(section==='fruit'&&/과일|열매|fruit|berry/.test(x))s+=5;
+ return s;
+}
+async function v37SemanticBridge(req){
+ let hits=[];try{hits=await v22SearchHits(req.name,req.section)}catch(e){}
+ if(!hits.length)return null;
+ const h=hits[0],sum=h.summary||{},desc=String(sum.text||sum.description||'').replace(/\s+/g,' ').trim();
+ if(desc.length<=45)return null;
+ const sem=v37SectionSemanticScore(req.section,h.title,desc);
+ const id=Math.max(Number(h.identity||0),identityScore(req.name,h.title)),ctx=Number(h.contextScore||0);
+ if(sem<5||(id<3&&ctx<5))return null;
+ let p=null;try{p=await sharedPage(h.title)}catch(e){}
+ if(!p)return null;
+ const exactDesc=String(p.extract||desc).replace(/\s+/g,' ').trim();
+ if(v37SectionSemanticScore(req.section,p.title,exactDesc)<5)return null;
+ const photo=(p.thumbnail?.source&&v13PhotoOkay(p.thumbnail.source,p.title,req.kind)&&v14PhotoIntentOkay(req.section,req.name,p.thumbnail.source,p.title))?p.thumbnail.source:'';
+ return {name:req.name,title:p.title||h.title,entityId:p.pageprops?.wikibase_item||'',pageId:p.pageid||'',
+  desc:v13CardDescription(exactDesc,req.name,req.kind),photo,photos:photo?[photo]:[],
+  sources:['V37 의미·별칭 연결'],score:sem+id+ctx};
+}
+
 // ===== V12 ABSOLUTELY ONE REQUEST PATH =====
 function v12Request(section,rawName,forcedKind=''){
  const display=cardInputName(rawName),kind=forcedKind||cardInputKind(section,rawName);
- return {section,rawName:String(rawName||''),name:display,kind,key:['V27-DESC-SAFE',section,kind,display].join('|')};
+ return {section,rawName:String(rawName||''),name:display,kind,key:['V37-SEMANTIC-SAFE',section,kind,display].join('|')};
 }
 async function v12ResolveRequest(req){
  try{const c=localStorage.getItem('magic_v27_entity_'+req.key);if(c){const j=JSON.parse(c);if(j&&j.desc)return j}}catch(e){}
@@ -1930,6 +1965,7 @@ async function v12ResolveRequest(req){
  }catch(e){}
  let result=null;
   try{result=await v36ExactTitleResolve(req)}catch(e){}
+  if(!result){try{result=await v37SemanticBridge(req)}catch(e){}}
   if(!result)result=await sharedResolve(req.name,req.kind,req.section);
  if(result&&result.desc){try{localStorage.setItem('magic_v27_entity_'+req.key,JSON.stringify(result))}catch(e){};return result}
  return null;
