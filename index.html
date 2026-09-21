@@ -2197,7 +2197,7 @@ openCountry=function(code){
 // ===== MASTER V28 NEW ENCYCLOPEDIA STRUCTURE - SAFE EXPERIMENT LAYER =====
 // Additive only: does not modify V28 frozen decisions, V3 resolver, card storage, or existing representative panels.
 const NEW_STRUCTURE_V1={
- version:'V28-NS1',
+ version:'V28-NS2',
  principle:'category overview -> broad candidate pool -> V3 verification -> child-card-ready shortlist -> card creation',
  maxCandidates:25,
  shortlist:12
@@ -2243,7 +2243,16 @@ async function nsRun(section,p){
  if(!good.length)box.innerHTML='<span>아직 카드 가능한 후보를 찾지 못했어요. 기존 V28 대표목록과 엔진은 그대로 유지됩니다.</span>';
  for(const row of good.slice(0,NEW_STRUCTURE_V1.shortlist)){
    const b=document.createElement('button');b.textContent='✨ '+row.name;b.style.cssText='padding:8px 10px;font-weight:800';
-   b.onclick=()=>{const existing=[...p.parentElement.querySelectorAll('.rep-card-buttons-v5 button')].find(x=>x.textContent.includes(row.name));if(existing)existing.click();else renderRepresentativeCardButtonsV5(section)};
+   b.onclick=async()=>{
+     // NS2 FIX: a verified new-structure candidate may not exist in the old representative list.
+     // Open the already verified V3 snapshot directly in the normal V28 preview/save panel.
+     await renderRepresentativeCardButtonsV5(section);
+     const repPanel=document.getElementById(section)?.querySelector('.rep-card-panel-v5');
+     if(!repPanel){alert('카드 만들기 화면을 준비하지 못했습니다.');return;}
+     if(row.verified?.desc){openRepresentativePreview(section,row.name,row.verified,repPanel);}
+     else{manualRepresentative(section,row.name);}
+     repPanel.scrollIntoView({behavior:'smooth',block:'center'});
+   };
    box.appendChild(b);
  }
  btn.disabled=false;
@@ -2257,7 +2266,7 @@ window.nsRun=nsRun;
 
 window.__MAGIC_V7_DIAGNOSTIC={
  engine:'tested V3 core',
- newStructure:'V28-NS1 additive candidate verification layer',
+ newStructure:'V28-NS2 direct verified candidate -> V28 preview/save bridge',
  lessonV23:'Fushimi/Yutoku: representative quality tie-break + exact selected-page photo binding',
  representativeV24:'upstream comparable-candidate selection before V3',
  representativeV26:'safe single-source display built on V24; card panel lifecycle untouched',
