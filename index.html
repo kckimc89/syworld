@@ -1438,6 +1438,7 @@ const V3_ALIAS={
  '오렌지나무':['오렌지 나무','orange tree','Citrus sinensis'],
  '포도나무':['포도 나무','grapevine','Vitis vinifera'],
  '라벤더':['lavender','Lavandula'],
+ '노 (일본 전통극)':['노 (연극)','노가쿠','Noh'],
  '크로케타':['크로켓','croqueta','croquette'],
  '추로스':['추로','churros','churro'],
  '파에야':['paella']
@@ -1695,6 +1696,15 @@ async function cardPipeline(section,rawName){return await sharedResolve(cardInpu
 async function V8_resolve(section,q){return await cardPipeline(section,q)}
 
 
+
+// ===== V28 FROZEN REPRESENTATIVE DECISION LAYER =====
+const V28_REP_DECISIONS={
+  JP:{places:{'후시미 이나리 신사':'유토쿠 이나리 신사'},culture:{'노':'노 (일본 전통극)'}}
+};
+function v28RepresentativeName(section,rawName){
+ const original=cardInputName(rawName);
+ return V28_REP_DECISIONS?.[COUNTRY]?.[section]?.[original]||original;
+}
 // ===== V24 REPRESENTATIVE SELECTION LAYER =====
 // Upstream of V3: educational representative remains primary.
 // Alternatives here mean "already judged comparable as representatives"; card quality only breaks that tie.
@@ -1706,6 +1716,8 @@ const V24_REP_ALTERNATIVES={
 const V24_REP_CHOICE_CACHE=new Map();
 async function v24ResolveRepresentative(section,rawName){
  const name=cardInputName(rawName);
+ const frozen=v28RepresentativeName(section,name);
+ if(frozen!==name)return {display:frozen,original:name,changed:true,frozen:true};
  const alts=V24_REP_ALTERNATIVES?.[COUNTRY]?.[section]?.[name];
  if(!alts||alts.length<2)return {display:name,original:name,changed:false};
  const ck=[COUNTRY,section,name].join('|');
@@ -1831,6 +1843,11 @@ function v12Request(section,rawName,forcedKind=''){
 }
 async function v12ResolveRequest(req){
  try{const c=localStorage.getItem('magic_v27_entity_'+req.key);if(c){const j=JSON.parse(c);if(j&&j.desc)return j}}catch(e){}
+ try{
+   const legacyKey=['V14-SAFE',req.section,req.kind,req.name].join('|');
+   const c=localStorage.getItem('magic_v14_entity_'+legacyKey);
+   if(c){const j=JSON.parse(c);if(j&&j.desc)return j}
+ }catch(e){}
  const result=await sharedResolve(req.name,req.kind,req.section);
  if(result&&result.desc){try{localStorage.setItem('magic_v27_entity_'+req.key,JSON.stringify(result))}catch(e){};return result}
  return null;
@@ -2051,6 +2068,20 @@ function v16PaintStatus(section){
  `확인 완료 · ● 카드 만들기 가능 ${good}개 · ✓ 등록됨 ${reg}개 · ○ 검색도움 ${rows.length-good-reg}개`)+` · 저장 ${si.mb}MB`;
 }
 
+
+const V28_JP_REGRESSION_EXPECTED=[
+ ['places','후지산','후지산'],
+ ['places','후시미 이나리 신사','유토쿠 이나리 신사'],
+ ['places','도쿄 스카이트리','도쿄 스카이트리'],
+ ['culture','노','노 (일본 전통극)']
+];
+function v28StaticRegressionCheck(){
+ const old=COUNTRY;let rows=[];
+ try{COUNTRY='JP';rows=V28_JP_REGRESSION_EXPECTED.map(([section,input,expected])=>({section,input,expected,actual:v28RepresentativeName(section,input),ok:v28RepresentativeName(section,input)===expected}));}
+ finally{COUNTRY=old}
+ return rows;
+}
+window.v28StaticRegressionCheck=v28StaticRegressionCheck;
 // ===== V26 SAFE SINGLE-SOURCE DISPLAY (built from V24, not V25) =====
 // The representative card panel remains the V24 known-good renderer.
 // Once V24 resolves a representative row, only the text inside the overview's representative line is refreshed.
@@ -2058,10 +2089,14 @@ function v26FinalRepText(section){
  const ov=COUNTRY_OVERVIEWS?.[COUNTRY]?.[section];
  const raw=Array.isArray(ov)?(ov[2]||''):(ov?.names||'');
  if(!raw)return '';
- const st=v16State(section);
  let out=String(raw);
+ for(const rep of parseRepNames(raw)){
+   const original=cardInputName(rep),finalName=v28RepresentativeName(section,rep);
+   if(original&&finalName&&original!==finalName)out=out.replace(original,finalName);
+ }
+ const st=v16State(section);
  for(const row of st.rows.values()){
-   const original=cardInputName(row.name), finalName=cardInputName(row.resolvedName||row.name);
+   const original=cardInputName(row.name),finalName=cardInputName(row.resolvedName||v28RepresentativeName(section,row.name));
    if(original&&finalName&&original!==finalName)out=out.replace(original,finalName);
  }
  return out;
@@ -2132,11 +2167,12 @@ async function renderRepresentativeCardButtonsV5(section){
  }
  const st=v16State(section),names=parseRepNames(repTextFor(section));
  for(const name of names){
-  const req=v12Request(section,name);
+  const finalName=v28RepresentativeName(section,name);
+  const req=v12Request(section,finalName);
   if(!st.rows.has(req.key)){
-   const hasRepAlternatives=!!V24_REP_ALTERNATIVES?.[COUNTRY]?.[section]?.[cardInputName(name)];
-   const cached=hasRepAlternatives?null:v15CachedRepresentative(section,name);
-   st.rows.set(req.key,{key:req.key,name,pending:!cached,ok:!!cached,verified:cached?.verified||null});
+   const hasRepAlternatives=finalName!==cardInputName(name)||!!V24_REP_ALTERNATIVES?.[COUNTRY]?.[section]?.[cardInputName(name)];
+   const cached=hasRepAlternatives?null:v15CachedRepresentative(section,finalName);
+   st.rows.set(req.key,{key:req.key,name,pending:!cached,ok:!!cached,verified:cached?.verified||null,resolvedName:finalName});
   }
  }
  // Never clear innerHTML here: existing buttons and preview stay visible.
@@ -2162,6 +2198,7 @@ window.__MAGIC_V7_DIAGNOSTIC={
  representativeV24:'upstream comparable-candidate selection before V3',
  representativeV26:'safe single-source display built on V24; card panel lifecycle untouched',
  integrityV27:'preserve leading subject + exact-entity description repair + contextual assist for ambiguous short names',
+ layersV28:'frozen representative decisions independent of search/description/photo caches',
  fruitOverview:'native COUNTRY_OVERVIEWS array',
  aliasMode:'canonical + reverse alias group',
  availability:'V3 result with description + photo'
