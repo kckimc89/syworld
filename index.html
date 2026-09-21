@@ -1177,6 +1177,16 @@ async function renderCandidates(s,host){
  }
  legend.textContent=passed?`✓ 같은 대상으로 설명과 사진을 확인한 추천후보 ${passed}개`:'추천 기준을 통과한 후보가 없습니다. 검색원을 바꾸거나 범위를 넓혀 다시 찾습니다.';
 }
+function renderSectionOverviewV32(s){
+ const sec=document.getElementById(s), data=(typeof COUNTRY_OVERVIEWS!=='undefined'?COUNTRY_OVERVIEWS[COUNTRY]:null), d=data&&data[s];
+ if(!sec||!Array.isArray(d)||d.length<3)return false;
+ sec.querySelectorAll(':scope > .sectionOverview').forEach(e=>e.remove());
+ const box=document.createElement('div');box.className='sectionOverview';
+ box.innerHTML='<h3>'+d[0]+'</h3><div>'+d[1]+'</div><div class="rep"><b>대표적으로 알아둘 이름</b><br>'+d[2]+'</div>';
+ const p=sec.querySelector(':scope > p');
+ if(p)p.insertAdjacentElement('afterend',box);else sec.insertBefore(box,sec.firstChild?.nextSibling||null);
+ return true;
+}
 async function renderSection(s){
  const el=document.getElementById(s+'List'); el.parentElement.querySelectorAll('.candidate-box').forEach(x=>x.remove());
  // 요술방망이 엔진 2는 사전등록 기본카드 없이 아이가 추가한 카드만 표시합니다.
@@ -1208,6 +1218,7 @@ async function renderSection(s){
    el.appendChild(card);
  }
  el.parentElement.querySelectorAll('.candidate-box').forEach(x=>x.remove());
+ renderSectionOverviewV32(s); // V32: overview is part of each section render, so it cannot disappear.
 }
 async function lookupDescription(name,country,section){
  const c=countries[country]; const queries=[name+' '+c.name,name];
@@ -1379,15 +1390,7 @@ US:{
 
 function renderCountryOverviews(){
  document.querySelectorAll('.sectionOverview').forEach(e=>e.remove());
- const data=COUNTRY_OVERVIEWS[COUNTRY]; if(!data)return;
- const map={food:'food',fruit:'fruit',animals:'animals',places:'places',culture:'culture',singers:'singers',athletes:'athletes',people:'people',art:'art'};
- for(const [key,id] of Object.entries(map)){
-   const sec=document.getElementById(id), d=data[key]; if(!sec||!d)continue;
-   const p=sec.querySelector(':scope > p');
-   const box=document.createElement('div'); box.className='sectionOverview';
-   box.innerHTML='<h3>'+d[0]+'</h3><div>'+d[1]+'</div><div class="rep"><b>대표적으로 알아둘 이름</b><br>'+d[2]+'</div>';
-   if(p) p.insertAdjacentElement('afterend',box); else sec.insertBefore(box,sec.firstChild.nextSibling);
- }
+ ['food','fruit','animals','places','culture','singers','athletes','people','art'].forEach(renderSectionOverviewV32);
 }
 
 // === CATEGORY-FIRST REPRESENTATIVE NAME ENGINE V1 ===
@@ -1479,7 +1482,7 @@ function renderFruitOverviewV4_DISABLED(){}
 
 
 const __v4OpenCountry=openCountry;
-openCountry=function(code){const r=__v4OpenCountry(code);renderCountryOverviews();return r;};
+openCountry=function(code){return __v4OpenCountry(code);};
 
 
 
@@ -2262,9 +2265,13 @@ function renderAllRepresentativeCardButtonsV5(){
 }
 const __v5OpenCountry=openCountry;
 openCountry=function(code){
- const r=__v5OpenCountry(code);
- // Let normal section rendering finish; representative panels attach once and keep their jobs.
- setTimeout(()=>{renderCountryOverviews();renderAllRepresentativeCardButtonsV5();REP_SECTIONS.forEach(v26RefreshOverviewRep)},80);
+ const r=__v5OpenCountry(code), opened=String(code);
+ Promise.all(REP_SECTIONS.map(s=>Promise.resolve(renderSection(s)).catch(()=>null))).then(()=>{
+  if(String(COUNTRY)!==opened)return;
+  renderCountryOverviews();
+  renderAllRepresentativeCardButtonsV5();
+  REP_SECTIONS.forEach(v26RefreshOverviewRep);
+ });
  return r;
 };
 
