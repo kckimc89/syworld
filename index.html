@@ -121,7 +121,7 @@ body.view-cards #detail .cards .item>.actions{display:none}
 .kbHelp{border-top:1px dashed #ddd;margin-top:14px;padding-top:14px}.kbHelp button{border:0;border-radius:12px;padding:10px 12px;font-weight:800;margin:4px;background:#f0f2f5}
 .kbRank{font-size:12px;background:#eef3f8;border-radius:999px;padding:2px 7px;margin-right:4px}
 </style>
-<button id="kbBtn" onclick="kbOpen()">✨ 새 백과구조 시험 · V48</button>
+<button id="kbBtn" onclick="kbOpen()">✨ 새 백과구조 시험 · V35</button>
 <div id="kbPanel"><div class="kbWrap">
  <div class="kbHead"><div><b style="font-size:23px">✨ 설명 → 대표 이름 → 카드 만들기</b><div class="kbHint">V5.2는 그대로 두고 새 구조만 별도로 시험합니다.</div></div><button onclick="kbClose()" style="font-size:26px;border:0;background:transparent">✕</button></div>
  <div class="kbBox"><b>🇪🇸 스페인 시험</b><p class="kbHint">이번 판은 구조를 확인하기 위한 스페인 콘텐츠 시험판입니다. 이름은 ‘카드가 잘 만들어지는 순서’가 아니라 대표성과 인지도를 우선해 배열했습니다.</p>
@@ -2270,65 +2270,174 @@ window.__MAGIC_V7_DIAGNOSTIC={
  availability:'V3 result with description + photo'
 };
 
-// ===== V48 CLEAN V3 REPRESENTATIVES — MAX 12 =====
-// encyclopedia candidates -> original V3 -> success = representative, up to 12.
-// Remaining candidates are shown only as a candidate pool; clicking one uses the existing Search Help.
-const V48_FINAL=new Map();
-
-function v48CandidateNames(section){
- const ov=v35OverviewData(COUNTRY)?.[section];
- const raw=Array.isArray(ov)?(ov[2]||''):(ov?.names||'');
- if(!raw)return [];
- return parseRepNames(String(raw)).map(x=>v28RepresentativeName(section,x)).filter(Boolean);
+// ===== V49: ORIGINAL SIMPLE CARD SEARCH LAB V3, INTEGRATED DIRECTLY =====
+async function v49_J(u){let c=new AbortController(),tm=setTimeout(()=>c.abort(),4500);try{let r=await fetch(u,{signal:c.signal});if(!r.ok)throw Error(r.status);return await r.json()}finally{clearTimeout(tm)}}
+const v49_KIND_KO={food:'음식',animal:'동물',plant:'식물',place:'장소',culture:'문화',person:'인물',art:'예술작품'};
+const v49_ALIAS={
+ '하몽 이베리코':['하몬 이베리코','jamón ibérico','jamon iberico'],
+ '스페인아이벡스':['스페인 아이벡스','Spanish ibex'],
+ '스페인제국수리':['스페인 제국수리','Spanish imperial eagle'],
+ '올리브나무':['올리브 나무','olive tree','Olea europaea'],
+ '코르크참나무':['코르크 참나무','cork oak','Quercus suber'],
+ '오렌지나무':['오렌지 나무','orange tree','Citrus sinensis'],
+ '포도나무':['포도 나무','grapevine','Vitis vinifera'],
+ '라벤더':['lavender','Lavandula'],
+ '크로케타':['크로켓','croqueta','croquette'],
+ '추로스':['추로','churros','churro'],
+ '파에야':['paella']
+};
+function v49_aliases(q){return [...new Set([q,...(v49_ALIAS[q]||[])])]}
+const v49_WORDS={
+ food:{yes:['음식','요리','식품','햄','빵','수프','튀김','dish','food','cuisine','ham','bread','soup','croquette'],no:['스포츠','운동','선수','기술','sport','athlete','gymnastics','move']},
+ animal:{yes:['동물','새','조류','포유류','독수리','수리','늑대','곰','스라소니','아이벡스','animal','bird','mammal','eagle','wolf','bear','lynx','ibex','taxon','species'],no:['제국','왕국','국가','empire','kingdom','state']},
+ plant:{yes:['식물','나무','참나무','포도나무','관목','plant','tree','oak','vine','grapevine','taxon','species'],no:['소설','문학','시','원숭이','novel','literature','poem','monkey']},
+ place:{yes:['건축','장소','성당','궁전','공원','박물관','산','building','place','cathedral','palace','park','museum','mountain'],no:['음식','food']},
+ culture:{yes:['문화','전통','축제','춤','음악','culture','tradition','festival','dance','music'],no:['식물','동물','plant','animal']},
+ person:{yes:['인물','사람','가수','선수','작가','왕','human','person','singer','athlete','writer','king'],no:['작품','영화','책','artwork','film','book']},
+ art:{yes:['작품','회화','그림','미술','painting','artwork','sculpture'],no:['화가','작가','사람','painter','artist','person']}
+};
+function v49_evidence(k,s){s=(s||'').toLowerCase();let w=v49_WORDS[k],yes=0,no=0;for(let x of w.yes)if(s.includes(x))yes++;for(let x of w.no)if(s.includes(x))no++;return{yes,no}}
+function v49_norm(s){return String(s||'').toLowerCase().replace(/[《》〈〉「」『』"'’‘·.,()\[\]\s_-]/g,'')}
+function v49_nameScore(a,b){a=v49_norm(a);b=v49_norm(b);if(!a||!b)return 0;if(a===b)return 100;if(a.includes(b)||b.includes(a))return 65;return 0}
+async function v49_wikiSearch(lang,q){
+ let u=`https://${lang}.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(q)}&gsrlimit=15&prop=extracts|pageimages|pageprops&exintro=1&explaintext=1&piprop=thumbnail|original&pithumbsize=1200&redirects=1&format=json&origin=*`;
+ try{return Object.values((await v49_J(u)).query?.pages||{})}catch(e){return[]}
 }
-async function v48Select(section){
- const key=String(COUNTRY||'')+'|'+section;
- if(V48_FINAL.has(key))return V48_FINAL.get(key);
- const candidates=v48CandidateNames(section),chosen=[],remaining=[];
- for(const name of candidates){
-   if(chosen.length>=12){remaining.push(name);continue}
-   const kind=cardInputKind(section,name); let v=null;
-   try{v=await sharedResolve(name,kind,section)}catch(e){}
-   const photo=v?.photo||v?.photos?.[0]||'';
-   if(v?.desc&&photo){v.photo=photo;chosen.push({name,v})}
-   else remaining.push(name);
+async function v49_wd(ids){
+ if(!ids.length)return{};
+ let u='https://www.wikidata.org/w/api.php?action=wbgetentities&ids='+encodeURIComponent([...new Set(ids)].join('|'))+'&props=labels|descriptions|claims|sitelinks&languages=ko|en&format=json&origin=*';
+ try{return(await v49_J(u)).entities||{}}catch(e){return{}}
+}
+function v49_claim(e,p){return(e?.claims?.[p]||[]).map(x=>x?.mainsnak?.datavalue?.value).filter(Boolean)}
+async function v49_typeText(e){
+ let ids=[...v49_claim(e,'P31'),...v49_claim(e,'P279')].map(x=>x?.id).filter(Boolean).slice(0,20),es=await v49_wd(ids);
+ return Object.values(es).map(x=>[x.labels?.ko?.value,x.labels?.en?.value,x.descriptions?.ko?.value,x.descriptions?.en?.value].filter(Boolean).join(' ')).join(' ');
+}
+async function v49_findSubject(q,k){
+ let names=v49_aliases(q), candidates=[];
+ // Fast path: at most two Wikipedia searches total.
+ for(let lang of ['ko','en']){
+   let searchName=lang==='ko'?names[0]:(names.find(x=>/[A-Za-z]/.test(x))||names[0]);
+   let pages=await v49_wikiSearch(lang,searchName+' '+(lang==='ko'?v49_KIND_KO[k]:({food:'food',animal:'animal',plant:'plant',place:'place',culture:'culture',person:'person',art:'artwork'}[k])));
+   for(let i=0;i<Math.min(pages.length,8);i++){
+     let p=pages[i];
+     let n=Math.max(...names.map(x=>v49_nameScore(x,p.title)));
+     // Exact/near name match is mandatory. Never drift to another named object.
+     if(n<65)continue;
+     let ev=v49_evidence(k,(p.title||'')+' '+(p.extract||''));
+     if(ev.no)continue;
+     candidates.push({p,lang,score:n+ev.yes*12+(8-i)});
+   }
  }
- const result={chosen,remaining}; V48_FINAL.set(key,result); return result;
+ candidates.sort((a,b)=>b.score-a.score);
+ for(let c of candidates.slice(0,3)){
+   let qid=c.p.pageprops?.wikibase_item;
+   if(!qid)continue;
+   let e=(await v49_wd([qid]))[qid];
+   if(!e)continue;
+   // One cheap entity v49_description check; no recursive P31/P279 traversal.
+   let ev=v49_evidence(k,[e.descriptions?.ko?.value,e.descriptions?.en?.value,c.p.extract].filter(Boolean).join(' '));
+   if(ev.no)continue;
+   return {e,p:c.p,lang:c.lang};
+ }
+ return null;
 }
-function v48Paint(section,result){
- const sec=document.getElementById(section), rep=sec?.querySelector('.sectionOverview .rep');
- if(!rep)return;
- rep.innerHTML='<b>대표적으로 알아둘 이름</b><br><span class="v48-final"></span>';
- const host=rep.querySelector('.v48-final');
- result.chosen.forEach((x,i)=>{
-   const b=document.createElement('button'); b.type='button'; b.textContent=cardInputName(x.name);
-   b.style.cssText='border:0;background:transparent;padding:2px 3px;font:inherit;font-weight:800;text-decoration:underline;text-underline-offset:3px;cursor:pointer';
-   b.onclick=()=>openRepresentativePreview(section,cardInputName(x.name),x.v,sec);
-   host.appendChild(b); if(i<result.chosen.length-1)host.appendChild(document.createTextNode(' · '));
- });
- let box=sec.querySelector('.v48-candidate-pool');
- if(!box){box=document.createElement('div');box.className='v48-candidate-pool';rep.insertAdjacentElement('afterend',box)}
- if(!result.remaining.length){box.innerHTML='';box.style.display='none';return}
- box.style.display='block';
- box.style.cssText+=';margin-top:10px;padding:10px 12px;border:1px dashed #cbd5e1;border-radius:12px;background:#fafafa;font-size:.94em;line-height:1.8';
- box.innerHTML='<b>후보군</b> <span style="font-weight:400">— 더 알아보고 싶으면 눌러서 검색도움으로 확인해 보세요.</span><br>';
- result.remaining.forEach((name,i)=>{
-   const b=document.createElement('button');b.type='button';b.textContent=cardInputName(name);
-   b.style.cssText='border:0;background:transparent;padding:2px 3px;font:inherit;text-decoration:underline;text-underline-offset:3px;cursor:pointer';
-   b.onclick=()=>manualRepresentative(section,cardInputName(name));
-   box.appendChild(b);if(i<result.remaining.length-1)box.appendChild(document.createTextNode(' · '));
- });
+async function v49_page(lang,title){
+ if(!title)return null;
+ let u=`https://${lang}.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(title)}&prop=extracts|pageimages&exintro=1&explaintext=1&piprop=thumbnail|original&pithumbsize=1200&redirects=1&format=json&origin=*`;
+ try{return Object.values((await v49_J(u)).query?.pages||{})[0]}catch(e){return null}
 }
-async function v48Refresh(section){
- const r=await v48Select(section); v48Paint(section,r); return r;
+function v49_description(q,e,ko,en){
+ let s=(ko?.extract||'').replace(/\[[^\]]+\]/g,' ').replace(/\s+/g,' ').trim();
+ if(s.length>=50){
+   let parts=s.split(/(?<=[.!?。！？])\s+/).slice(0,4);
+   let out=parts.join(' ');
+   return out.length>620?out.slice(0,617)+'…':out;
+ }
+ let d=e.descriptions?.ko?.value||'';
+ if(s && d)return (s+' '+q+'은(는) '+d+'입니다.').slice(0,620);
+ if(d)return `${q}은(는) ${d}입니다.`;
+ return `${q}의 대상은 확인했지만 충분한 한국어 설명을 찾지 못했습니다.`;
+}
+function v49_badPhoto(u,k){
+ let s=decodeURIComponent(u||'').toLowerCase(),bad=['map','range','distribution','diagram','chart','logo','flag','icon','painting','drawing','herbarium','essential_oil'];
+ return bad.some(x=>s.includes(x));
+}
+async function v49_commons(q,k){
+ let u='https://v49_commons.wikimedia.org/w/api.php?action=query&generator=search&gsrnamespace=6&gsrsearch='+encodeURIComponent(q)+'&gsrlimit=25&prop=imageinfo&iiprop=url&iiurlwidth=1200&format=json&origin=*';
+ try{return Object.values((await v49_J(u)).query?.pages||{}).map(x=>x.imageinfo?.[0]?.thumburl||x.imageinfo?.[0]?.url).filter(x=>x&&!v49_badPhoto(x,k))}catch(e){return[]}
+}
+async function v49_fileUrl(name){
+ if(!name)return'';
+ try{let j=await v49_J('https://v49_commons.wikimedia.org/w/api.php?action=query&titles=File:'+encodeURIComponent(name)+'&prop=imageinfo&iiprop=url&iiurlwidth=1200&format=json&origin=*');let p=Object.values(j.query?.pages||{})[0];return p?.imageinfo?.[0]?.thumburl||p?.imageinfo?.[0]?.url||''}catch(e){return''}
+}
+async function v49_photos(q,k,e,ko,en){
+ let a=[];
+ for(let u of [ko?.thumbnail?.source,ko?.original?.source,en?.thumbnail?.source,en?.original?.source].filter(Boolean))
+   if(!v49_badPhoto(u,k))a.push(u);
+ let p18=v49_claim(e,'P18')[0];
+ if(p18){let u=await v49_fileUrl(p18);if(u&&!v49_badPhoto(u,k))a.push(u)}
+ let enName=e.labels?.en?.value||v49_aliases(q).find(x=>/[A-Za-z]/.test(x))||q;
+ a.push(...await v49_commons(enName,k));
+ return [...new Set(a)].slice(0,5);
 }
 
-// Hook only after the original renderer has done its normal work.
-// Original Add Item / Search Help remains untouched.
-const V48_ORIGINAL_RENDER=renderRepresentativeCardButtonsV5;
+async function v49OriginalV3(q,k){
+ try{
+  const s=await v49_findSubject(q,k); if(!s)return null;
+  const e=s.e;
+  let ko=await v49_page('ko',e.sitelinks?.kowiki?.title), en=await v49_page('en',e.sitelinks?.enwiki?.title);
+  if(!ko&&s.lang==='ko')ko=s.p;if(!en&&s.lang==='en')en=s.p;
+  const chosen=e.labels?.ko?.value||e.labels?.en?.value||s.p.title||'';
+  if(Math.max(...v49_aliases(q).map(x=>v49_nameScore(x,chosen)),...v49_aliases(q).map(x=>v49_nameScore(x,s.p.title)))<65)return null;
+  const desc=v49_description(q,e,ko,en), ps=await v49_photos(q,k,e,ko,en);
+  if(!desc||!ps.length)return null;
+  return {name:q,title:chosen,entityId:e.id||'',desc,photo:ps[0],photos:ps,sources:['카드 검색엔진 시험기 V3 · 빠른 정확검색']};
+ }catch(e){return null}
+}
+
+const V49_CANDIDATES={
+ CN:{
+  food:['베이징 카오야','자오쯔','딤섬','마파두부','훠궈','탄탄면','샤오룽바오','궁바오지딩','완탕','춘권','월병','동파육','마라탕','볶음밥','바오쯔'],
+  fruit:['복숭아','배','리치','용안','귤','대추','수박','감','사과','포도','살구','자두','석류','키위']
+ }
+};
+function v49Candidates(section){
+ const special=V49_CANDIDATES?.[COUNTRY]?.[section];
+ if(special?.length)return special;
+ const ov=v35OverviewData(COUNTRY)?.[section],raw=Array.isArray(ov)?(ov[2]||''):(ov?.names||'');
+ return raw?parseRepNames(String(raw)).map(x=>v28RepresentativeName(section,x)).filter(Boolean):[];
+}
+const V49_STATE=new Map();
+async function v49Select(section){
+ const key=COUNTRY+'|'+section;if(V49_STATE.has(key))return V49_STATE.get(key);
+ const chosen=[],remaining=[];
+ for(const name of v49Candidates(section)){
+  if(chosen.length>=12){remaining.push(name);continue}
+  const kind=cardInputKind(section,name);let v=await v49OriginalV3(cardInputName(name),kind);
+  if(v)chosen.push({name,v});else remaining.push(name);
+ }
+ const r={chosen,remaining};V49_STATE.set(key,r);return r;
+}
+function v49Paint(section,r){
+ const sec=document.getElementById(section),rep=sec?.querySelector('.sectionOverview .rep');if(!rep)return;
+ rep.innerHTML='<b>대표적으로 알아둘 이름</b><br><span class="v49-final"></span>';
+ const host=rep.querySelector('.v49-final');
+ r.chosen.forEach((x,i)=>{const b=document.createElement('button');b.type='button';b.textContent=cardInputName(x.name);b.className='v49-name';b.style.cssText='border:0;background:transparent;padding:3px 4px;font:inherit;font-weight:800;text-decoration:underline;text-underline-offset:3px;cursor:pointer';b.onclick=()=>openRepresentativePreview(section,cardInputName(x.name),x.v,sec);host.appendChild(b);if(i<r.chosen.length-1)host.appendChild(document.createTextNode(' · '))});
+ let box=sec.querySelector('.v49-candidates');if(!box){box=document.createElement('div');box.className='v49-candidates';rep.insertAdjacentElement('afterend',box)}
+ box.style.cssText='margin-top:10px;padding:10px 12px;border:1px dashed #d0d5dd;border-radius:12px;background:#fafafa;line-height:1.8';
+ if(!r.remaining.length){box.style.display='none';box.innerHTML='';return}
+ box.style.display='block';box.innerHTML='<b>후보군</b><br>';
+ r.remaining.forEach((name,i)=>{const b=document.createElement('button');b.type='button';b.textContent=cardInputName(name);b.style.cssText='border:0;background:transparent;padding:2px 3px;font:inherit;text-decoration:underline;cursor:pointer';b.onclick=()=>manualRepresentative(section,cardInputName(name));box.appendChild(b);if(i<r.remaining.length-1)box.appendChild(document.createTextNode(' · '))});
+}
+
+const v49OldRender=renderRepresentativeCardButtonsV5;
 renderRepresentativeCardButtonsV5=async function(section){
- const out=await V48_ORIGINAL_RENDER(section);
- try{await v48Refresh(section)}catch(e){console.warn('[V48]',e)}
+ const out=await v49OldRender(section);
+ const sec=document.getElementById(section);
+ const panel=sec?.querySelector('.rep-card-panel-v5');
+ if(panel)panel.style.display='none';
+ try{v49Paint(section,await v49Select(section))}catch(e){console.warn('[V49]',e)}
  return out;
 };
 </script>
