@@ -121,7 +121,7 @@ body.view-cards #detail .cards .item>.actions{display:none}
 .kbHelp{border-top:1px dashed #ddd;margin-top:14px;padding-top:14px}.kbHelp button{border:0;border-radius:12px;padding:10px 12px;font-weight:800;margin:4px;background:#f0f2f5}
 .kbRank{font-size:12px;background:#eef3f8;border-radius:999px;padding:2px 7px;margin-right:4px}
 </style>
-<button id="kbBtn" onclick="kbOpen()">✨ 모두 바로 만드는 대표카드 · V42</button>
+<button id="kbBtn" onclick="kbOpen()">✨ 성공카드만 대표로 · V43</button>
 <div id="kbPanel"><div class="kbWrap">
  <div class="kbHead"><div><b style="font-size:23px">✨ 설명 → 대표 이름 → 카드 만들기</b><div class="kbHint">V5.2는 그대로 두고 새 구조만 별도로 시험합니다.</div></div><button onclick="kbClose()" style="font-size:26px;border:0;background:transparent">✕</button></div>
  <div class="kbBox"><b>🇪🇸 스페인 시험</b><p class="kbHint">이번 판은 구조를 확인하기 위한 스페인 콘텐츠 시험판입니다. 이름은 ‘카드가 잘 만들어지는 순서’가 아니라 대표성과 인지도를 우선해 배열했습니다.</p>
@@ -1951,31 +1951,12 @@ async function v37SemanticBridge(req){
   sources:['V37 의미·별칭 연결'],score:sem+id+ctx};
 }
 
-// ===== V41 EDUCATION-FIRST: V3 MOVES UPSTREAM =====
-const V41_FINAL_NS='magic_v41_finalrep_';
-function v41FinalKey(section,name){return V41_FINAL_NS+String(COUNTRY||'')+'_'+section+'_'+encodeURIComponent(cardInputName(name))}
-function v41GetFinal(section,name){try{const j=JSON.parse(localStorage.getItem(v41FinalKey(section,name))||'null');return j&&j.desc?j:null}catch(e){return null}}
-function v41SaveFinal(section,name,v){if(!v||!v.desc)return false;const snap={name:cardInputName(name),title:String(v.title||name),entityId:String(v.entityId||''),pageId:v.pageId==null?'':String(v.pageId),desc:String(v.desc||'').trim(),photo:String(v.photo||''),photos:Array.isArray(v.photos)?v.photos.filter(Boolean).slice(0,5):[],sources:Array.isArray(v.sources)?v.sources.map(String):[]};try{localStorage.setItem(v41FinalKey(section,name),JSON.stringify(snap));return true}catch(e){if(isQuotaError(e)){clearExpendableSearchCaches();try{localStorage.setItem(v41FinalKey(section,name),JSON.stringify(snap));return true}catch(_){}}return false}}
-function v41CountryLabel(){return ({ES:'스페인',JP:'일본',US:'미국',CN:'중국',FR:'프랑스',EG:'이집트',BR:'브라질',IN:'인도'})[String(COUNTRY||'')]||''}
-function v41KindLabel(k,s){return ({food:'음식',fruit:'과일',animal:'동물',plant:'식물',place:'명소',singer:'가수',athlete:'운동선수',person:'역사인물',art:'예술작품'})[k]||({animals:'동식물',places:'명소',culture:'문화',singers:'가수',athletes:'운동선수',people:'역사인물'})[s]||''}
-function v41Contradiction(req,title,desc){const x=(String(title||'')+' '+String(desc||'')).toLowerCase();if(req.kind==='fruit'&&/가수|배우|인물|음반|노래|singer|actor|album|song/.test(x))return true;if(req.kind==='place'&&/화학|화합물|분자|산성|황산염|chemical|compound|molecule|acid|sulfate/.test(x))return true;if((req.kind==='plant'||req.kind==='animal')&&/가수|배우|선수|영화|음반|singer|actor|athlete|film|album/.test(x))return true;return false}
-async function v41UpstreamVerify(req){
- const saved=v41GetFinal(req.section,req.name);if(saved)return saved;
- let v=null;try{v=await sharedResolve(req.name,req.kind,req.section)}catch(e){}
- if(v&&v.desc&&!v41Contradiction(req,v.title||req.name,v.desc)){v41SaveFinal(req.section,req.name,v);return v}
- const country=v41CountryLabel(),type=v41KindLabel(req.kind,req.section),qs=[[req.name,country,type].filter(Boolean).join(' '),[req.name,type].filter(Boolean).join(' ')];let best=null;
- for(const q of qs){try{const u='https://ko.wikipedia.org/w/api.php?action=query&list=search&srsearch='+encodeURIComponent(q)+'&srlimit=6&format=json&origin=*';const r=await fetch(u);if(!r.ok)continue;const j=await r.json();for(const h of j.query?.search||[]){let s=null;try{s=await wikiSummaryByTitle(h.title,'ko')}catch(e){}const d=String(s?.text||s?.description||'').replace(/\s+/g,' ').trim();if(d.length<=45||v41Contradiction(req,h.title,d))continue;const sem=v37SectionSemanticScore(req.section,h.title,d);if(sem<3)continue;let score=sem+identityScore(req.name,h.title);if(type&&d.includes(type))score+=4;if(country&&d.includes(country))score+=2;if(!best||score>best.score)best={title:h.title,desc:d,score}}}catch(e){}if(best&&best.score>=10)break}
- if(!best)return null;let pg=null;try{pg=await sharedPage(best.title)}catch(e){}if(!pg)return null;const d=String(pg.extract||best.desc).replace(/\s+/g,' ').trim();if(v41Contradiction(req,pg.title,d))return null;const photo=(pg.thumbnail?.source&&v13PhotoOkay(pg.thumbnail.source,pg.title,req.kind)&&v14PhotoIntentOkay(req.section,req.name,pg.thumbnail.source,pg.title))?pg.thumbnail.source:'';
- v={name:req.name,title:pg.title||best.title,entityId:pg.pageprops?.wikibase_item||'',pageId:pg.pageid||'',desc:v13CardDescription(d,req.name,req.kind),photo,photos:photo?[photo]:[],sources:['V41 대표선정 사전검증'],score:best.score};v41SaveFinal(req.section,req.name,v);return v;
-}
-
 // ===== V12 ABSOLUTELY ONE REQUEST PATH =====
 function v12Request(section,rawName,forcedKind=''){
  const display=cardInputName(rawName),kind=forcedKind||cardInputKind(section,rawName);
- return {section,rawName:String(rawName||''),name:display,kind,key:['V41-EDUCATION-FIRST',String(COUNTRY||''),section,kind,display].join('|')};
+ return {section,rawName:String(rawName||''),name:display,kind,key:['V37-SEMANTIC-SAFE',section,kind,display].join('|')};
 }
 async function v12ResolveRequest(req){
- const finalRep=v41GetFinal(req.section,req.name);if(finalRep)return finalRep;
  try{const c=localStorage.getItem('magic_v27_entity_'+req.key);if(c){const j=JSON.parse(c);if(j&&j.desc)return j}}catch(e){}
  try{
    const legacyKey=['V14-SAFE',req.section,req.kind,req.name].join('|');
@@ -1997,15 +1978,15 @@ async function v12TestResolve(type,name){
 async function precheckRepresentative(section,name){
  const req=v12Request(section,name);
  if(repAvailabilityCache.has(req.key))return repAvailabilityCache.get(req.key);
- let verified=null;try{verified=await v41UpstreamVerify(req)}catch(e){};if(!verified)try{verified=await v12ResolveRequest(req)}catch(e){}
- if(verified)try{verified=await v27RepairVerifiedDescription(verified,req.name)}catch(e){};if(verified&&v41Contradiction(req,verified.title||req.name,verified.desc||''))verified=null;if(verified)v41SaveFinal(section,name,verified)
+ let verified=null;try{verified=await v12ResolveRequest(req)}catch(e){}
+ if(verified)try{verified=await v27RepairVerifiedDescription(verified,req.name)}catch(e){}
  const result=verified&&verified.desc?{ok:true,verified}:{ok:false,verified:null};
  repAvailabilityCache.set(req.key,result);return result;
 }
 function openRepresentativePreview(section,name,verified,panel){
  let pv=panel.querySelector('.rep-preview-v5');
  if(!pv){pv=document.createElement('div');pv.className='rep-preview-v5';panel.appendChild(pv);}
- // V41: representative selection already verified this exact card snapshot; never search it again here.
+ // Reuse the verified snapshot; do not search a second time.
  const photoChoices=(verified.photos||[verified.photo]).filter(Boolean).slice(0,5);
  if(!photoChoices.length){try{console.debug('[V13] no safe photo for',name)}catch(e){}}
  pv.innerHTML=`<div class="preview-card"><h3>${esc(name)}</h3><p>${esc(verified.desc)}</p><div class="v3-photo-choices">${photoChoices.map((u,i)=>`<label><input type="radio" name="v3photo" value="${esc(u)}" ${i===0?'checked':''}><img src="${esc(u)}" alt=""></label>`).join('')}</div><div class="preview-actions"><button class="rep-save-v5">⭐ 선택한 사진으로 카드 만들기</button><button class="rep-close-v5">닫기</button></div></div>`;
@@ -2252,37 +2233,6 @@ function v26RefreshOverviewRep(section){
  const txt=v26FinalRepText(section);if(!txt)return;
  rep.innerHTML='<b>대표적으로 알아둘 이름</b><br>'+txt;
 }
-// ===== V42 ALL REPRESENTATIVES MUST BE CARD-READY =====
-// Main representative list shows ONLY verified items with a usable photo.
-// Failed/no-photo candidates become optional "study more" suggestions.
-// If fewer than 4 pass, no-photo verified items may be restored as fallback.
-function v42Ready(row){return !!(row.ok&&row.verified?.desc&&(row.verified?.photo||row.verified?.photos?.length))}
-function v42NoPhotoFallback(row){return !!(row.ok&&row.verified?.desc&&!row.verified?.photo&&!row.verified?.photos?.length)}
-function v42EnsureStudyBox(panel){
- let box=panel.querySelector('.v42-study-more');
- if(!box){box=document.createElement('div');box.className='v42-study-more';box.style.marginTop='14px';box.innerHTML='<div style="font-weight:800;margin-bottom:6px">🔎 더 공부해볼 대상</div><div class="v42-study-buttons"></div>';panel.appendChild(box)}
- return box;
-}
-function v42PaintStudy(section,row,panel){
- const box=v42EnsureStudyBox(panel),host=box.querySelector('.v42-study-buttons'),shown=cardInputName(row.resolvedName||row.name);
- let b=host.querySelector(`[data-study-key="${CSS.escape(row.key)}"]`);
- if(!b){b=document.createElement('button');b.type='button';b.dataset.studyKey=row.key;b.className='rep-card-btn-v5 cannot-make';host.appendChild(b)}
- b.textContent='🔎 '+shown;b.title='대표목록에서는 제외했지만, 관심이 있으면 검색도움으로 더 공부해볼 수 있습니다.';
- b.onclick=()=>manualRepresentative(section,shown);
-}
-function v42Rebalance(section,panel){
- const st=v16State(section),rows=[...st.rows.values()],done=rows.filter(r=>!r.pending),ready=done.filter(v42Ready);
- // Main list target: all shown items are immediately card-ready.
- for(const row of done){
-  const b=panel.querySelector(`[data-rep-key="${CSS.escape(row.key)}"]`);
-  if(v42Ready(row)){if(b)b.style.display='';continue}
-  // Only when fewer than 4 fully ready items exist, allow verified/no-photo items as last-resort representatives.
-  if(ready.length<4&&v42NoPhotoFallback(row)){if(b){b.style.display='';b.textContent='● '+cardInputName(row.resolvedName||row.name);b.className='rep-card-btn-v5 can-make';b.onclick=()=>openRepresentativePreview(section,cardInputName(row.resolvedName||row.name),row.verified,panel)}}
-  else{if(b)b.style.display='none';v42PaintStudy(section,row,panel)}
- }
- const box=panel.querySelector('.v42-study-more');if(box)box.style.display=box.querySelector('.v42-study-buttons')?.children.length?'':'none';
-}
-
 function v16PaintRow(section,row,panel){
  const shown=cardInputName(row.resolvedName||row.name), original=cardInputName(row.name);
  const existing=getCustom(section), registered=hasIdentity(shown,existing);
@@ -2325,37 +2275,92 @@ async function v16RunQueue(section){
    row.pending=false;row.ok=!!r?.ok;row.verified=r?.verified||null;
    v26RefreshOverviewRep(section);
    const panel=document.getElementById(section)?.querySelector('.rep-card-panel-v5');
-   if(panel && panel.dataset.country===st.country){v16PaintRow(section,row,panel);v42Rebalance(section,panel);v16PaintStatus(section)}
+   if(panel && panel.dataset.country===st.country){v16PaintRow(section,row,panel);v16PaintStatus(section)}
    await new Promise(res=>setTimeout(res,60));
   }
   st.finished=true;
  }finally{st.running=false;v16PaintStatus(section)}
 }
+// ===== V43 FRESH START: SUCCESS-ONLY EDUCATION ENGINE =====
+const V43_FINAL_NS='magic_v43_final_';
+const V43_SESSION=new Map();
+function v43Key(section,name){return V43_FINAL_NS+String(COUNTRY||'')+'_'+section+'_'+encodeURIComponent(cardInputName(name))}
+function v43Read(section,name){try{const x=JSON.parse(localStorage.getItem(v43Key(section,name))||'null');return x&&x.desc&&x.photo?x:null}catch(e){return null}}
+function v43Write(section,name,v){
+ if(!v?.desc||!v?.photo)return false;
+ const x={name:cardInputName(name),title:String(v.title||name),entityId:String(v.entityId||''),pageId:v.pageId==null?'':String(v.pageId),
+ desc:String(v.desc).trim(),photo:String(v.photo),sources:Array.isArray(v.sources)?v.sources.slice(0,2):[]};
+ try{localStorage.setItem(v43Key(section,name),JSON.stringify(x));return true}catch(e){v43PurgeSearchCaches();try{localStorage.setItem(v43Key(section,name),JSON.stringify(x));return true}catch(_){return false}}
+}
+function v43PurgeSearchCaches(){
+ const prefixes=['magicwand_photo_','place_desc_v30_','rebuilt_','autophoto_','trial_candidates_used_','magic_v13_entity_','magic_v14_entity_','magic_v15_entity_','magic_v16_entity_','magic_v27_entity_'];
+ const del=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&prefixes.some(p=>k.startsWith(p)))del.push(k)}del.forEach(k=>localStorage.removeItem(k));
+}
+function v43Country(){return ({ES:'스페인',JP:'일본',US:'미국',CN:'중국',FR:'프랑스',EG:'이집트',BR:'브라질',IN:'인도'})[String(COUNTRY||'')]||''}
+function v43Type(kind,section){return ({food:'음식',fruit:'과일',animal:'동물',plant:'식물',place:'명소',singer:'가수',athlete:'운동선수',person:'역사인물',art:'예술작품'})[kind]||({culture:'문화',animals:'동식물',places:'명소',singers:'가수',athletes:'운동선수',people:'역사인물'})[section]||''}
+function v43Bad(req,title,desc){
+ const x=(String(title||'')+' '+String(desc||'')).toLowerCase();
+ if(req.kind==='fruit'&&/가수|배우|인물|음반|노래|singer|actor|album|song/.test(x))return true;
+ if(req.kind==='place'&&/화학|화합물|분자|산성|황산염|chemical|compound|molecule|acid|sulfate/.test(x))return true;
+ if((req.kind==='animal'||req.kind==='plant')&&/가수|배우|선수|영화|음반|singer|actor|athlete|film|album/.test(x))return true;
+ return false;
+}
+async function v43Verify(section,rawName){
+ const name=cardInputName(rawName),req=v12Request(section,name),saved=v43Read(section,name);if(saved)return saved;
+ const sk=String(COUNTRY||'')+'|'+section+'|'+name;if(V43_SESSION.has(sk))return V43_SESSION.get(sk);
+ let v=null;
+ // V3 remains the first verifier.
+ try{v=await sharedResolve(name,req.kind,section)}catch(e){}
+ if(v&&v.desc&&!v43Bad(req,v.title||name,v.desc)&&(v.photo||v.photos?.[0])){
+   v.photo=v.photo||v.photos[0];v43Write(section,name,v);V43_SESSION.set(sk,v);return v;
+ }
+ // One contextual recovery pass. No persistent search cache.
+ const q=[name,v43Country(),v43Type(req.kind,section)].filter(Boolean).join(' ');
+ let best=null;
+ try{
+  const u='https://ko.wikipedia.org/w/api.php?action=query&list=search&srsearch='+encodeURIComponent(q)+'&srlimit=6&format=json&origin=*';
+  const r=await fetch(u);if(r.ok){const j=await r.json();for(const h of j.query?.search||[]){
+   let s=null;try{s=await wikiSummaryByTitle(h.title,'ko')}catch(e){}
+   const d=String(s?.text||s?.description||'').replace(/\s+/g,' ').trim();if(d.length<45||v43Bad(req,h.title,d))continue;
+   const sem=v37SectionSemanticScore(section,h.title,d);if(sem<3)continue;
+   const score=sem+identityScore(name,h.title)+(d.includes(v43Country())?2:0)+(d.includes(v43Type(req.kind,section))?3:0);
+   if(!best||score>best.score)best={title:h.title,desc:d,score};
+  }}
+ }catch(e){}
+ if(best){try{const pg=await sharedPage(best.title);if(pg){const d=String(pg.extract||best.desc).replace(/\s+/g,' ').trim();const ph=pg.thumbnail?.source||'';if(d.length>=45&&!v43Bad(req,pg.title,d)&&ph&&v13PhotoOkay(ph,pg.title,req.kind)&&v14PhotoIntentOkay(section,name,ph,pg.title)){v={name,title:pg.title,entityId:pg.pageprops?.wikibase_item||'',pageId:pg.pageid||'',desc:v13CardDescription(d,name,req.kind),photo:ph,photos:[ph],sources:['V43 사전검증']};v43Write(section,name,v);V43_SESSION.set(sk,v);return v}}}catch(e){}}
+ V43_SESSION.set(sk,null);return null;
+}
+function v43StudyButton(section,name,host){
+ const b=document.createElement('button');b.className='rep-card-btn-v5 cannot-make';b.textContent='🔎 '+cardInputName(name);
+ b.onclick=()=>manualRepresentative(section,cardInputName(name));host.appendChild(b);
+}
+async function v43BuildPanel(section,panel,names){
+ const readyHost=panel.querySelector('.v43-ready'),studyHost=panel.querySelector('.v43-study'),status=panel.querySelector('.v43-status');
+ readyHost.innerHTML='';studyHost.innerHTML='';
+ let ready=0,done=0;status.textContent=`대표후보를 카드로 미리 검증하고 있어요 · 0/${names.length}`;
+ for(const raw of names){
+  const name=v28RepresentativeName(section,raw);let v=null;try{v=await v43Verify(section,name)}catch(e){}
+  done++;
+  if(v?.desc&&v?.photo){
+   ready++;const b=document.createElement('button');b.className='rep-card-btn-v5 can-make';b.textContent='● '+cardInputName(name);
+   b.onclick=()=>openRepresentativePreview(section,cardInputName(name),v,panel);readyHost.appendChild(b);
+  }else v43StudyButton(section,name,studyHost);
+  status.textContent=`검증 ${done}/${names.length} · 바로 만들 수 있는 대표카드 ${ready}개`;
+  await new Promise(r=>setTimeout(r,40));
+ }
+ panel.querySelector('.v43-study-wrap').style.display=studyHost.children.length?'':'none';
+ status.textContent=`완료 · 대표카드 ${ready}개는 모두 바로 만들 수 있어요`+(ready<4?' · 대표카드가 적어 더 공부해볼 대상도 남겼어요':'');
+ // Search caches are disposable. Purge after the final success list is built.
+ v43PurgeSearchCaches();
+}
 async function renderRepresentativeCardButtonsV5(section){
  const sec=document.getElementById(section);if(!sec)return;
- let panel=sec.querySelector('.rep-card-panel-v5');
- // V17: a section DOM is reused between countries, but its representative panel must never be.
- if(panel && panel.dataset.country!==String(COUNTRY||'')){panel.remove();panel=null}
- if(!panel){
-  panel=document.createElement('div');panel.className='rep-card-panel-v5 note';panel.dataset.country=String(COUNTRY||'');
-  panel.innerHTML='<div class="rep-title-v5">⭐ 바로 만들 수 있는 대표 카드</div><div class="rep-status-v5"></div><div class="rep-card-buttons-v5"></div><div class="rep-preview-v5"></div>';
-  sec.appendChild(panel);
- }
- const st=v16State(section),names=parseRepNames(repTextFor(section));
- for(const name of names){
-  const finalName=v28RepresentativeName(section,name);
-  const req=v12Request(section,finalName);
-  if(!st.rows.has(req.key)){
-   const hasRepAlternatives=finalName!==cardInputName(name)||!!V24_REP_ALTERNATIVES?.[COUNTRY]?.[section]?.[cardInputName(name)];
-   const cached=hasRepAlternatives?null:v15CachedRepresentative(section,finalName);
-   st.rows.set(req.key,{key:req.key,name,pending:!cached,ok:!!cached,verified:cached?.verified||null,resolvedName:finalName});
-  }
- }
- // Never clear innerHTML here: existing buttons and preview stay visible.
- for(const row of st.rows.values())v16PaintRow(section,row,panel);
- v42Rebalance(section,panel);
- v16PaintStatus(section);
- v16RunQueue(section); // idempotent: existing job is reused
+ let old=sec.querySelector('.rep-card-panel-v5');if(old)old.remove();
+ const panel=document.createElement('div');panel.className='rep-card-panel-v5 note';panel.dataset.country=String(COUNTRY||'');
+ panel.innerHTML='<div class="rep-title-v5">⭐ 바로 만들 수 있는 대표카드</div><div class="v43-status">준비 중…</div><div class="rep-card-buttons-v5 v43-ready"></div><div class="v43-study-wrap" style="margin-top:16px"><div style="font-weight:800;margin-bottom:7px">🔎 더 공부해볼 대상</div><div class="v43-study"></div></div><div class="rep-preview-v5"></div>';
+ sec.appendChild(panel);
+ const names=parseRepNames(repTextFor(section));
+ v43BuildPanel(section,panel,names);
 }
 function renderAllRepresentativeCardButtonsV5(){
  // Compatibility helper; render visible sections without resetting their state.
@@ -2365,10 +2370,11 @@ const __v5OpenCountry=openCountry;
 openCountry=function(code){
  const r=__v5OpenCountry(code);
  // Let normal section rendering finish; representative panels attach once and keep their jobs.
- setTimeout(()=>{renderCountryOverviews();renderAllRepresentativeCardButtonsV5();REP_SECTIONS.forEach(v26RefreshOverviewRep)},80);
+ setTimeout(()=>{renderCountryOverviews();renderAllRepresentativeCardButtonsV5();/* V43: candidate text stays stable */},80);
  return r;
 };
 
+try{v43PurgeSearchCaches()}catch(e){}
 window.__MAGIC_V7_DIAGNOSTIC={
  engine:'tested V3 core',
  lessonV23:'Fushimi/Yutoku: representative quality tie-break + exact selected-page photo binding',
