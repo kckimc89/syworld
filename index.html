@@ -141,6 +141,7 @@ const KB={
  names:['게르니카','시녀들','1808년 5월 3일','기억의 지속','쾌락의 정원','옷을 입은 마하','옷을 벗은 마하','십자가의 성 요한의 그리스도','아비뇽의 처녀들','성모 승천 (엘 그레코)']}
 };
 let kbCurrent='';
+const KB_VERIFIED=new Map();
 function kbOpen(){document.getElementById('kbPanel').style.display='block'}
 function kbClose(){document.getElementById('kbPanel').style.display='none'}
 function kbEsc(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
@@ -178,9 +179,25 @@ async function kbCheck(type,i,btn){
  btn.classList.remove('ok','help');btn.classList.add(possible?'ok':'help');
  btn.querySelector('small').textContent=possible?'⭐ 카드 만들 수 있어요':'🧩 내가 추가하도록 도와줘';
  if(possible){
-  pv.innerHTML=`<div class="kbBox kbPreview"><h3>⭐ ${kbEsc(name)} 카드 미리보기</h3>${best.photo?`<img src="${best.photo}" alt="">`:''}<p>${kbEsc(best.desc.slice(0,500))}</p><p class="kbHint">나라 화면과 완전히 같은 검색 함수를 사용합니다.</p></div>`;
+  KB_VERIFIED.set(type+'|'+name,best);
+  pv.innerHTML=`<div class="kbBox kbPreview"><h3>⭐ ${kbEsc(name)} 카드 미리보기</h3>${best.photo?`<img src="${best.photo}" alt="">`:''}<p>${kbEsc(best.desc.slice(0,500))}</p><p class="kbHint">V28 공통 검색엔진에서 확인했습니다. 아래 버튼은 별도 저장방식을 만들지 않고 V28의 원래 카드 만들기 화면으로 이동합니다.</p><button style="border:0;border-radius:14px;padding:13px 18px;background:#5b43c7;color:white;font-weight:900;font-size:17px" onclick="kbMakeWithV28('${type}',${i})">⭐ V28 원래 방식으로 카드 만들기</button></div>`;
  }else kbHelp(name,type,null,pv);
 }
+
+async function kbMakeWithV28(type,i){
+ const name=KB[type].names[i], verified=KB_VERIFIED.get(type+'|'+name);
+ if(!verified||!verified.desc){alert('카드 자료를 다시 확인해 주세요.');return;}
+ const section=kbSection(type);
+ kbClose();
+ // 새 구조는 저장 엔진을 만들지 않는다. 스페인 나라 화면을 연 뒤 V28 원래 preview/save 함수를 그대로 호출한다.
+ openCountry('ES');
+ await renderRepresentativeCardButtonsV5(section);
+ const panel=document.getElementById(section)?.querySelector('.rep-card-panel-v5');
+ if(!panel){alert('V28 카드 만들기 화면을 열지 못했습니다.');return;}
+ openRepresentativePreview(section,name,verified,panel);
+ setTimeout(()=>panel.scrollIntoView({behavior:'smooth',block:'center'}),50);
+}
+
 function kbHelp(name,type,best,pv){
  const desc=best?.desc?kbEsc(best.desc.slice(0,260)):'자동으로 믿을 만한 카드 자료를 충분히 확보하지 못했습니다.';
  pv.innerHTML=`<div class="kbBox"><h3>🧩 ${kbEsc(name)} — 중요한 이름은 버리지 않아요</h3><p>${desc}</p><p><b>자동 카드가 어려워도 이 이름은 백과 목록에 그대로 남습니다.</b></p><div class="kbHelp"><b>내가 카드 만들기</b><p class="kbHint">아이와 함께 자료를 보완할 수 있도록 다음 기능을 연결할 예정입니다.</p><button onclick="kbCopyName('${kbEsc(name)}')">① 이름 복사</button><button onclick="kbOpenOriginalAdd('${kbEsc(name)}')">② V5.2 직접추가로 이동</button><p class="kbHint">완성판에서는 사진 선택 → 짧은 설명 입력/보완 → 미리보기 → 저장 순서의 ‘도와주는 카드 만들기’ 화면으로 확장합니다.</p></div></div>`;
@@ -2192,81 +2209,8 @@ openCountry=function(code){
  return r;
 };
 
-
-
-// ===== MASTER V28 NEW ENCYCLOPEDIA STRUCTURE - SAFE EXPERIMENT LAYER =====
-// Additive only: does not modify V28 frozen decisions, V3 resolver, card storage, or existing representative panels.
-const NEW_STRUCTURE_V1={
- version:'V28-NS2',
- principle:'category overview -> broad candidate pool -> V3 verification -> child-card-ready shortlist -> card creation',
- maxCandidates:25,
- shortlist:12
-};
-function nsUnique(a){return [...new Set((a||[]).map(x=>String(x||'').trim()).filter(Boolean))]}
-function nsBaseNames(section){return parseRepNames(repTextFor(section)).map(x=>x.replace(/^\s*(동물|식물)\s*—\s*/,''))}
-function nsCandidatePool(section){
- const base=nsBaseNames(section), more=[];
- for(const n of base){
-   more.push(n);
-   const alts=V24_REP_ALTERNATIVES?.[COUNTRY]?.[section]?.[n]; if(alts)more.push(...alts);
- }
- return nsUnique(more).slice(0,NEW_STRUCTURE_V1.maxCandidates);
-}
-async function nsVerify(section,name){
- let r=null;try{r=await precheckRepresentative(section,name)}catch(e){}
- return {name,ok:!!r?.ok,verified:r?.verified||null};
-}
-function nsPanel(section){
- const sec=document.getElementById(section);if(!sec)return null;
- let p=sec.querySelector('.ns-panel-v1');
- if(!p){
-   p=document.createElement('div');p.className='ns-panel-v1 note';
-   p.style.cssText='margin-top:12px;padding:14px;border:2px dashed #d8b4fe;border-radius:16px;background:#fcf7ff';
-   p.innerHTML='<div style="font-weight:900;font-size:1.05rem">🪄 새 백과구조 실험</div><div style="margin:5px 0 9px">카테고리 설명 → 대표후보 모으기 → V3로 실제 카드 가능 여부 확인 → 성공 후보만 카드 만들기</div><button class="ns-run" style="font-weight:800;padding:9px 12px">대표후보 점검하기</button><div class="ns-status" style="margin-top:8px"></div><div class="ns-results" style="display:flex;gap:7px;flex-wrap:wrap;margin-top:8px"></div>';
-   sec.appendChild(p);
-   p.querySelector('.ns-run').onclick=()=>nsRun(section,p);
- }
- return p;
-}
-async function nsRun(section,p){
- const btn=p.querySelector('.ns-run'),status=p.querySelector('.ns-status'),box=p.querySelector('.ns-results');
- btn.disabled=true;box.innerHTML='';
- const pool=nsCandidatePool(section);status.textContent=`후보 ${pool.length}개를 V3 엔진으로 확인하고 있어요…`;
- const good=[];
- for(let i=0;i<pool.length;i++){
-   status.textContent=`후보 ${pool.length}개 중 ${i+1}번째 확인 중…`;
-   const row=await nsVerify(section,pool[i]);
-   if(row.ok)good.push(row);
-   await new Promise(r=>setTimeout(r,40));
- }
- status.innerHTML=`✅ ${pool.length}개 확인 · 카드 가능한 후보 <b>${good.length}개</b>`;
- if(!good.length)box.innerHTML='<span>아직 카드 가능한 후보를 찾지 못했어요. 기존 V28 대표목록과 엔진은 그대로 유지됩니다.</span>';
- for(const row of good.slice(0,NEW_STRUCTURE_V1.shortlist)){
-   const b=document.createElement('button');b.textContent='✨ '+row.name;b.style.cssText='padding:8px 10px;font-weight:800';
-   b.onclick=async()=>{
-     // NS2 FIX: a verified new-structure candidate may not exist in the old representative list.
-     // Open the already verified V3 snapshot directly in the normal V28 preview/save panel.
-     await renderRepresentativeCardButtonsV5(section);
-     const repPanel=document.getElementById(section)?.querySelector('.rep-card-panel-v5');
-     if(!repPanel){alert('카드 만들기 화면을 준비하지 못했습니다.');return;}
-     if(row.verified?.desc){openRepresentativePreview(section,row.name,row.verified,repPanel);}
-     else{manualRepresentative(section,row.name);}
-     repPanel.scrollIntoView({behavior:'smooth',block:'center'});
-   };
-   box.appendChild(b);
- }
- btn.disabled=false;
-}
-function nsAttachAll(){REP_SECTIONS.forEach(s=>{if(document.getElementById(s))nsPanel(s)})}
-const __nsOpenCountry=openCountry;
-openCountry=function(code){const r=__nsOpenCountry(code);setTimeout(nsAttachAll,140);return r};
-window.NEW_STRUCTURE_V1=NEW_STRUCTURE_V1;
-window.nsCandidatePool=nsCandidatePool;
-window.nsRun=nsRun;
-
 window.__MAGIC_V7_DIAGNOSTIC={
  engine:'tested V3 core',
- newStructure:'V28-NS2 direct verified candidate -> V28 preview/save bridge',
  lessonV23:'Fushimi/Yutoku: representative quality tie-break + exact selected-page photo binding',
  representativeV24:'upstream comparable-candidate selection before V3',
  representativeV26:'safe single-source display built on V24; card panel lifecycle untouched',
