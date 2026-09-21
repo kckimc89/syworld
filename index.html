@@ -121,7 +121,7 @@ body.view-cards #detail .cards .item>.actions{display:none}
 .kbHelp{border-top:1px dashed #ddd;margin-top:14px;padding-top:14px}.kbHelp button{border:0;border-radius:12px;padding:10px 12px;font-weight:800;margin:4px;background:#f0f2f5}
 .kbRank{font-size:12px;background:#eef3f8;border-radius:999px;padding:2px 7px;margin-right:4px}
 </style>
-<button id="kbBtn" onclick="kbOpen()">✨ V3가 대표이름부터 선정 · V44</button>
+<button id="kbBtn" onclick="kbOpen()">✨ 대표이름 자체가 완성카드 · V45</button>
 <div id="kbPanel"><div class="kbWrap">
  <div class="kbHead"><div><b style="font-size:23px">✨ 설명 → 대표 이름 → 카드 만들기</b><div class="kbHint">V5.2는 그대로 두고 새 구조만 별도로 시험합니다.</div></div><button onclick="kbClose()" style="font-size:26px;border:0;background:transparent">✕</button></div>
  <div class="kbBox"><b>🇪🇸 스페인 시험</b><p class="kbHint">이번 판은 구조를 확인하기 위한 스페인 콘텐츠 시험판입니다. 이름은 ‘카드가 잘 만들어지는 순서’가 아니라 대표성과 인지도를 우선해 배열했습니다.</p>
@@ -2273,7 +2273,6 @@ async function v16RunQueue(section){
     try{r=await precheckRepresentative(section,choice.display)}catch(e){}
    }
    row.pending=false;row.ok=!!r?.ok;row.verified=r?.verified||null;
-   v26RefreshOverviewRep(section);
    const panel=document.getElementById(section)?.querySelector('.rep-card-panel-v5');
    if(panel && panel.dataset.country===st.country){v16PaintRow(section,row,panel);v16PaintStatus(section)}
    await new Promise(res=>setTimeout(res,60));
@@ -2328,13 +2327,59 @@ async function v44Verify(section,raw){const name=v28RepresentativeName(section,r
  for(const q of qs){try{const u='https://ko.wikipedia.org/w/api.php?action=query&list=search&srsearch='+encodeURIComponent(q)+'&srlimit=7&format=json&origin=*';const r=await fetch(u);if(!r.ok)continue;const j=await r.json();for(const h of j.query?.search||[]){let s=null;try{s=await wikiSummaryByTitle(h.title,'ko')}catch(e){}const d=String(s?.text||s?.description||'').replace(/\\s+/g,' ').trim();if(d.length<45||v44Wrong(req,h.title,d))continue;const sem=v37SectionSemanticScore(section,h.title,d);if(sem<3)continue;let score=sem+identityScore(name,h.title);if(d.includes(v44Country()))score+=4;if(d.includes(v44Type(req.kind,section)))score+=3;if(!best||score>best.score)best={title:h.title,desc:d,score}}}catch(e){}if(best&&best.score>=11)break}
  if(best){try{const pg=await sharedPage(best.title);if(pg){const d=String(pg.extract||best.desc).replace(/\\s+/g,' ').trim(),ph=pg.thumbnail?.source||'';if(d.length>=45&&!v44Wrong(req,pg.title,d)&&ph&&v13PhotoOkay(ph,pg.title,req.kind)&&v14PhotoIntentOkay(section,name,ph,pg.title)){v={name,title:pg.title,entityId:pg.pageprops?.wikibase_item||'',pageId:pg.pageid||'',desc:v13CardDescription(d,name,req.kind),photo:ph,photos:[ph],sources:['V44 대표선정 V3검증'],score:best.score};v44Write(section,name,v);V44_SESSION.set(sk,v);return v}}}catch(e){}}
  V44_SESSION.set(sk,null);return null}
-async function v44Build(section,panel){const candidates=v44Candidates(section),ready=[],study=[],status=panel.querySelector('.v44-status');status.textContent=`후보 ${candidates.length}개를 V3가 먼저 검증하고 있어요`;
- for(let i=0;i<candidates.length;i++){const raw=candidates[i],name=v28RepresentativeName(section,raw);let v=null;try{v=await v44Verify(section,raw)}catch(e){};if(v)ready.push({raw,name,v});else study.push({raw,name});status.textContent=`V3 검증 ${i+1}/${candidates.length} · 성공 ${ready.length}개`;if(ready.length>=10)break;await new Promise(r=>setTimeout(r,35))}
- const chosen=ready.slice(0,10),rh=panel.querySelector('.v44-ready'),sh=panel.querySelector('.v44-study');rh.innerHTML='';sh.innerHTML='';for(const x of chosen){const b=document.createElement('button');b.className='rep-card-btn-v5 can-make';b.textContent='● '+cardInputName(x.name);b.onclick=()=>openRepresentativePreview(section,cardInputName(x.name),x.v,panel);rh.appendChild(b)}
- // Only failed original/high-value candidates are study suggestions; they are not representatives.
- for(const x of study.slice(0,6)){const b=document.createElement('button');b.className='rep-card-btn-v5 cannot-make';b.textContent='🔎 '+cardInputName(x.name);b.onclick=()=>manualRepresentative(section,cardInputName(x.name));sh.appendChild(b)}
- panel.querySelector('.v44-study-wrap').style.display=sh.children.length?'':'none';status.textContent=`완료 · 최종 대표이름 ${chosen.length}개 · 모두 바로 카드로 만들 수 있어요`;v44PurgeSearchCaches()}
-async function renderRepresentativeCardButtonsV5(section){const sec=document.getElementById(section);if(!sec)return;let old=sec.querySelector('.rep-card-panel-v5');if(old)old.remove();const panel=document.createElement('div');panel.className='rep-card-panel-v5 note';panel.dataset.country=String(COUNTRY||'');panel.innerHTML='<div class="rep-title-v5">⭐ V3가 선정한 최종 대표이름</div><div class="v44-status">준비 중…</div><div class="rep-card-buttons-v5 v44-ready"></div><div class="v44-study-wrap" style="margin-top:16px"><div style="font-weight:800;margin-bottom:7px">🔎 대표에서는 빠졌지만 더 공부해볼 대상</div><div class="v44-study"></div></div><div class="rep-preview-v5"></div>';sec.appendChild(panel);v44Build(section,panel)}
+// ===== V45 ONE REPRESENTATIVE LIST =====
+const V45_SELECTED=new Map();
+function v45SelectedKey(section){return [String(COUNTRY||''),section].join('|')}
+function v45FormatNames(section,chosen){
+ if(section!=='animals')return chosen.map(x=>cardInputName(x.name)).join(' · ');
+ const animals=[],plants=[];
+ for(const x of chosen){const raw=String(x.raw||'');const n=cardInputName(x.name);if(/^\s*식물\s*[—\-:]/.test(raw))plants.push(n);else animals.push(n)}
+ let out=[];if(animals.length)out.push('동물 — '+animals.join(' · '));if(plants.length)out.push('식물 — '+plants.join(' · '));return out.join(' / ');
+}
+function v45StudyBox(section,study,repBox){
+ let old=repBox.querySelector('.v45-study');if(old)old.remove();
+ if(!study.length)return;
+ const d=document.createElement('div');d.className='v45-study';d.style.marginTop='12px';d.innerHTML='<div style="font-weight:800;margin-bottom:6px">🔎 더 공부해볼 만한 것</div><div class="v45-study-buttons"></div>';
+ const h=d.querySelector('.v45-study-buttons');
+ for(const x of study.slice(0,8)){const b=document.createElement('button');b.type='button';b.className='rep-card-btn-v5 cannot-make';b.textContent=cardInputName(x.name);b.onclick=()=>manualRepresentative(section,cardInputName(x.name));h.appendChild(b)}
+ repBox.appendChild(d);
+}
+function v45PaintTop(section,chosen,study){
+ const sec=document.getElementById(section),rep=sec?.querySelector('.sectionOverview .rep');if(!rep)return;
+ rep.innerHTML='<b>대표적으로 알아둘 이름</b><br><span class="v45-final-names"></span>';
+ const host=rep.querySelector('.v45-final-names');
+ for(let i=0;i<chosen.length;i++){
+  const x=chosen[i],b=document.createElement('button');b.type='button';b.className='v45-name-link';b.textContent=cardInputName(x.name);
+  b.style.cssText='border:0;background:transparent;padding:2px 3px;font:inherit;font-weight:800;text-decoration:underline;text-underline-offset:3px;cursor:pointer';
+  b.onclick=()=>openRepresentativePreview(section,cardInputName(x.name),x.v,sec);
+  host.appendChild(b);if(i<chosen.length-1)host.appendChild(document.createTextNode(' · '));
+ }
+ v45StudyBox(section,study,rep);
+}
+async function v45SelectRepresentatives(section){
+ const key=v45SelectedKey(section);if(V45_SELECTED.has(key))return V45_SELECTED.get(key);
+ const candidates=v44Candidates(section),ready=[],study=[];
+ // V3 participates BEFORE names become representatives.
+ for(let i=0;i<candidates.length;i++){
+  const raw=candidates[i],name=v28RepresentativeName(section,raw);let v=null;
+  try{v=await v44Verify(section,raw)}catch(e){}
+  if(v?.desc&&v?.photo)ready.push({raw,name,v});else study.push({raw,name});
+  if(ready.length>=10)break;
+  await new Promise(r=>setTimeout(r,30));
+ }
+ const chosen=ready.slice(0,10),result={chosen,study};
+ V45_SELECTED.set(key,result);v44PurgeSearchCaches();return result;
+}
+async function renderRepresentativeCardButtonsV5(section){
+ // V45 deliberately has NO second representative panel.
+ const sec=document.getElementById(section);if(!sec)return;
+ const old=sec.querySelector('.rep-card-panel-v5');if(old)old.remove();
+ const rep=sec.querySelector('.sectionOverview .rep');if(!rep)return;
+ rep.innerHTML='<b>대표적으로 알아둘 이름</b><br><span style="opacity:.72">V3가 대표후보를 확인하고 있어요…</span>';
+ const {chosen,study}=await v45SelectRepresentatives(section);
+ if(String(COUNTRY||'')!==v45SelectedKey(section).split('|')[0])return;
+ v45PaintTop(section,chosen,study);
+}
 function renderAllRepresentativeCardButtonsV5(){
  // Compatibility helper; render visible sections without resetting their state.
  REP_SECTIONS.forEach(s=>{const el=document.getElementById(s);if(el)renderRepresentativeCardButtonsV5(s)});
