@@ -121,7 +121,7 @@ body.view-cards #detail .cards .item>.actions{display:none}
 .kbHelp{border-top:1px dashed #ddd;margin-top:14px;padding-top:14px}.kbHelp button{border:0;border-radius:12px;padding:10px 12px;font-weight:800;margin:4px;background:#f0f2f5}
 .kbRank{font-size:12px;background:#eef3f8;border-radius:999px;padding:2px 7px;margin-right:4px}
 </style>
-<button id="kbBtn" onclick="kbOpen()">✨ V3 직결 · V47</button>
+<button id="kbBtn" onclick="kbOpen()">✨ 새 백과구조 시험 · V48</button>
 <div id="kbPanel"><div class="kbWrap">
  <div class="kbHead"><div><b style="font-size:23px">✨ 설명 → 대표 이름 → 카드 만들기</b><div class="kbHint">V5.2는 그대로 두고 새 구조만 별도로 시험합니다.</div></div><button onclick="kbClose()" style="font-size:26px;border:0;background:transparent">✕</button></div>
  <div class="kbBox"><b>🇪🇸 스페인 시험</b><p class="kbHint">이번 판은 구조를 확인하기 위한 스페인 콘텐츠 시험판입니다. 이름은 ‘카드가 잘 만들어지는 순서’가 아니라 대표성과 인지도를 우선해 배열했습니다.</p>
@@ -595,7 +595,7 @@ function getCustom(s){try{return JSON.parse(localStorage.getItem(key(s))||'[]')}
 function isQuotaError(e){return !!e&&(e.name==='QuotaExceededError'||e.name==='NS_ERROR_DOM_QUOTA_REACHED'||e.code===22||e.code===1014)}
 function clearExpendableSearchCaches(){
  // V20: delete only regenerable caches. Never touch DATA_NS user cards, title, favorites, backup metadata or IndexedDB photos.
- const disposable=['magicwand_photo_','place_desc_v30_','rebuilt_','autophoto_','trial_candidates_used_','magic_v27_entity_'];
+ const disposable=['magicwand_photo_','place_desc_v30_','rebuilt_','autophoto_','trial_candidates_used_'];
  const legacyEntity=['magic_v13_entity_','magic_v14_entity_','magic_v15_entity_','magic_v16_entity_'];
  const keys=[];
  for(let i=0;i<localStorage.length;i++){
@@ -1902,59 +1902,10 @@ const V14_REGRESSION_CASES=[
 function v14RegressionStaticCheck(){
  return V14_REGRESSION_CASES.map(([kind,name])=>({kind,name,normalized:cardInputName(name)}));
 }
-// ===== V36 EXACT-TITLE FIRST GATE =====
-async function v36ExactTitleResolve(req){
- let p=null;try{p=await sharedPage(req.name)}catch(e){}
- if(!p)return null;
- const desc=String(p.extract||'').replace(/\s+/g,' ').trim();
- if(desc.length<=45||v13NameFit(req.name,p.title)<6)return null;
- const semantic=v37SectionSemanticScore(req.section,p.title,desc);
- const gate=sharedTypeFit(req.kind,p.title,desc)+v13EntityFit(req.name,req.kind,p.title,desc)+v14IntentFit(req.section||req.kind,req.name,p.title,desc,p.thumbnail?.source||'');
- if(gate<4||semantic<3)return null;
- const photo=(p.thumbnail?.source&&v13PhotoOkay(p.thumbnail.source,p.title,req.kind)&&v14PhotoIntentOkay(req.section||req.kind,req.name,p.thumbnail.source,p.title))?p.thumbnail.source:'';
- return {name:req.name,title:p.title||req.name,entityId:p.pageprops?.wikibase_item||'',pageId:p.pageid||'',
-  desc:v13CardDescription(desc,req.name,req.kind),photo,photos:photo?[photo]:[],
-  sources:['V36 정확 제목 우선 확인'],score:gate};
-}
-
-// ===== V37 SEMANTIC BRIDGE + HOMONYM GUARD =====
-function v37SectionSemanticScore(section,title,desc){
- const x=(String(title||'')+' '+String(desc||'')).toLowerCase();
- let s=v22SectionScore(section,x);
- if(section==='places'){
-   if(/산|산맥|공원|국립공원|명소|관광|유적|궁|사원|박물관|도시|자연유산|세계유산|mountain|park|heritage|scenic/.test(x))s+=5;
-   if(/화학|화합물|산성|황산염|분자|원소|chemical|acid|sulfate|molecule/.test(x))s-=14;
- }
- if(section==='animals'){
-   if(/동물|포유류|조류|파충류|어류|곰과|고양이과|학명|species|mammal|animal/.test(x))s+=5;
-   if(/식물|화학|영화|노래|회사/.test(x))s-=7;
- }
- if(section==='food'&&/음식|요리|먹|면|만두|국수|재료|dish|food|cuisine/.test(x))s+=5;
- if(section==='fruit'&&/과일|열매|fruit|berry/.test(x))s+=5;
- return s;
-}
-async function v37SemanticBridge(req){
- let hits=[];try{hits=await v22SearchHits(req.name,req.section)}catch(e){}
- if(!hits.length)return null;
- const h=hits[0],sum=h.summary||{},desc=String(sum.text||sum.description||'').replace(/\s+/g,' ').trim();
- if(desc.length<=45)return null;
- const sem=v37SectionSemanticScore(req.section,h.title,desc);
- const id=Math.max(Number(h.identity||0),identityScore(req.name,h.title)),ctx=Number(h.contextScore||0);
- if(sem<5||(id<3&&ctx<5))return null;
- let p=null;try{p=await sharedPage(h.title)}catch(e){}
- if(!p)return null;
- const exactDesc=String(p.extract||desc).replace(/\s+/g,' ').trim();
- if(v37SectionSemanticScore(req.section,p.title,exactDesc)<5)return null;
- const photo=(p.thumbnail?.source&&v13PhotoOkay(p.thumbnail.source,p.title,req.kind)&&v14PhotoIntentOkay(req.section,req.name,p.thumbnail.source,p.title))?p.thumbnail.source:'';
- return {name:req.name,title:p.title||h.title,entityId:p.pageprops?.wikibase_item||'',pageId:p.pageid||'',
-  desc:v13CardDescription(exactDesc,req.name,req.kind),photo,photos:photo?[photo]:[],
-  sources:['V37 의미·별칭 연결'],score:sem+id+ctx};
-}
-
 // ===== V12 ABSOLUTELY ONE REQUEST PATH =====
 function v12Request(section,rawName,forcedKind=''){
  const display=cardInputName(rawName),kind=forcedKind||cardInputKind(section,rawName);
- return {section,rawName:String(rawName||''),name:display,kind,key:['V37-SEMANTIC-SAFE',section,kind,display].join('|')};
+ return {section,rawName:String(rawName||''),name:display,kind,key:['V27-DESC-SAFE',section,kind,display].join('|')};
 }
 async function v12ResolveRequest(req){
  try{const c=localStorage.getItem('magic_v27_entity_'+req.key);if(c){const j=JSON.parse(c);if(j&&j.desc)return j}}catch(e){}
@@ -1963,10 +1914,7 @@ async function v12ResolveRequest(req){
    const c=localStorage.getItem('magic_v14_entity_'+legacyKey);
    if(c){const j=JSON.parse(c);if(j&&j.desc)return j}
  }catch(e){}
- let result=null;
-  try{result=await v36ExactTitleResolve(req)}catch(e){}
-  if(!result){try{result=await v37SemanticBridge(req)}catch(e){}}
-  if(!result)result=await sharedResolve(req.name,req.kind,req.section);
+ const result=await sharedResolve(req.name,req.kind,req.section);
  if(result&&result.desc){try{localStorage.setItem('magic_v27_entity_'+req.key,JSON.stringify(result))}catch(e){};return result}
  return null;
 }
@@ -2135,15 +2083,7 @@ async function v22SearchHits(name,section){
 async function v22SuggestOtherSection(name,current){let corpus=name;try{const u='https://ko.wikipedia.org/w/api.php?action=query&list=search&srsearch='+encodeURIComponent(name)+'&srlimit=6&format=json&origin=*';const r=await fetch(u);if(r.ok){const j=await r.json();corpus+=' '+(j.query?.search||[]).map(x=>x.title+' '+x.snippet.replace(/<[^>]+>/g,' ')).join(' ')}}catch(e){}const cur=v22SectionScore(current,corpus);let best=null;for(const s of Object.keys(V22_SECTION_LABEL)){if(s===current)continue;const score=v22SectionScore(s,corpus);if(!best||score>best.score)best={section:s,score}}return best&&best.score>=2&&best.score>cur+1?best:null}
 function v22ScrollToSection(section){const el=document.getElementById(section);if(el){el.scrollIntoView({behavior:'smooth',block:'start'});setTimeout(()=>document.getElementById(section+'List')?.querySelector('.item:last-child')?.scrollIntoView({behavior:'smooth',block:'center'}),350)}}
 async function v18ManualAssist(section,typedName){const name=String(typedName||'').trim();if(!name)return;const panel=document.getElementById(section)?.querySelector('.rep-card-panel-v5');if(!panel)return alert('검색도움 화면을 준비하지 못했습니다.');const pv=panel.querySelector('.rep-preview-v5');if(!pv)return;const other=await v22SuggestOtherSection(name,section);if(other){pv.innerHTML=`<div class="preview-card"><h3>🧭 카테고리를 확인해 주세요</h3><p><b>${esc(name)}</b>은(는) ‘${esc(v22SectionLabel(section))}’보다 ‘${esc(v22SectionLabel(other.section))}’에 더 가까워 보여요.</p><div class="v22-category-choice"><button class="v22-move">📂 ${esc(v22SectionLabel(other.section))}에서 찾아보기</button><button class="v22-stay">🔎 ${esc(v22SectionLabel(section))}에서 계속 찾기</button><button class="rep-close-v5">닫기</button></div></div>`;pv.querySelector('.v22-move').onclick=()=>{pv.innerHTML='';document.getElementById(other.section)?.scrollIntoView({behavior:'smooth',block:'start'});setTimeout(()=>v18ManualAssist(other.section,name),300)};pv.querySelector('.v22-stay').onclick=()=>v22ShowAssistResults(section,name,pv);pv.querySelector('.rep-close-v5').onclick=()=>pv.innerHTML='';return}return v22ShowAssistResults(section,name,pv)}
-async function v22ShowAssistResults(section,name,pv){pv.innerHTML=`<div class="preview-card">🔎 <b>${esc(v22SectionLabel(section))}</b> 범위에서 후보를 찾고 있어요…</div>`;const hits=await v22SearchHits(name,section);if(!hits.length){pv.innerHTML='<div class="preview-card"><b>관련 후보를 찾지 못했습니다.</b><button class="rep-close-v5">닫기</button></div>';pv.querySelector('.rep-close-v5').onclick=()=>pv.innerHTML='';return}const good=hits.filter(h=>h.catScore>0),shown=(good.length>=3?good:hits).slice(0,8);const renderList=()=>{pv.innerHTML=`<div class="preview-card"><h3>🔎 ${esc(v22SectionLabel(section))} 후보</h3><p>하나씩 확인하고, 맞지 않으면 <b>← 다른 후보 보기</b>로 돌아오세요.</p><div class="v22-suggestions"></div><button class="rep-close-v5">닫기</button></div>`;const host=pv.querySelector('.v22-suggestions');for(const h of shown){const b=document.createElement('button');b.className='rep-card-btn-v5 can-make';b.textContent=h.title;host.appendChild(b);b.onclick=()=>preview(h)}pv.querySelector('.rep-close-v5').onclick=()=>pv.innerHTML=''};const preview=async h=>{pv.innerHTML='<div class="preview-card">🔎 선택한 대상을 확인하고 있어요…</div>';let exact=null;try{exact=await v23ExactSelectedSnapshot(h.title,section)}catch(e){};let found=exact?{desc:exact.desc}:null;if(!found&&h.summary?.text&&h.catScore>0)found={desc:h.summary.text.split(/(?<=[.!?。！？])\s+/).slice(0,4).join(' ')};if(!found){pv.innerHTML='<div class="preview-card"><b>이 카테고리의 항목으로 충분히 확인하지 못했습니다.</b><p>비슷한 이름은 보여드리지만, 정확한 대상을 확인하지 못한 카드는 억지로 만들지 않습니다.</p><button class="v22-back">← 다른 후보 보기</button></div>';pv.querySelector('.v22-back').onclick=renderList;return}let photo=exact?.photo||'';pv.innerHTML=`<div class="preview-card"><h3>${esc(h.title)}</h3><p>${esc(found.desc)}</p>${photo?`<div class="v3-photo-choices"><img src="${esc(photo)}" alt=""></div>`:''}<div class="preview-actions"><button class="v22-back">← 다른 후보 보기</button><button class="v18-manual-save">⭐ 이 항목 추가</button><button class="rep-close-v5">닫기</button></div></div>`;pv.querySelector('.v22-back').onclick=renderList;pv.querySelector('.rep-close-v5').onclick=()=>pv.innerHTML='';pv.querySelector('.v18-manual-save').onclick=async()=>{const a=getCustom(section);if(hasIdentity(h.title,a))return alert('이미 같은 항목이 있습니다.');const item={id:newItemId(),name:h.title,desc:found.desc,emoji:'⭐',source:'manual',photoVerified:!!photo,photoRemote:photo,entityId:String(exact?.entityId||''),entityTitle:String(exact?.title||h.title),pageId:exact?.pageId==null?'':String(exact.pageId)};try{
- const ok=setCustom(section,[...a,item]);
- const saved=getCustom(section).some(x=>x.id===item.id);
- if(ok!==true||!saved)throw new Error('assisted save verification failed');
-}catch(e){
- console.error('[V36] assisted save failed',e);
- return alert(isQuotaError(e)?'저장공간이 부족해 검색 임시자료를 정리했지만 아직 공간이 부족합니다. 백업 후 확인해 주세요.':'카드 저장 중 오류가 발생했습니다. 다시 한 번 눌러 주세요.');
-}
-pv.innerHTML='';await renderSection(section);await renderRepresentativeCardButtonsV5(section);v16MarkRegisteredInPlace(section,h.title);v22ScrollToSection(section)}};renderList()}
+async function v22ShowAssistResults(section,name,pv){pv.innerHTML=`<div class="preview-card">🔎 <b>${esc(v22SectionLabel(section))}</b> 범위에서 후보를 찾고 있어요…</div>`;const hits=await v22SearchHits(name,section);if(!hits.length){pv.innerHTML='<div class="preview-card"><b>관련 후보를 찾지 못했습니다.</b><button class="rep-close-v5">닫기</button></div>';pv.querySelector('.rep-close-v5').onclick=()=>pv.innerHTML='';return}const good=hits.filter(h=>h.catScore>0),shown=(good.length>=3?good:hits).slice(0,8);const renderList=()=>{pv.innerHTML=`<div class="preview-card"><h3>🔎 ${esc(v22SectionLabel(section))} 후보</h3><p>하나씩 확인하고, 맞지 않으면 <b>← 다른 후보 보기</b>로 돌아오세요.</p><div class="v22-suggestions"></div><button class="rep-close-v5">닫기</button></div>`;const host=pv.querySelector('.v22-suggestions');for(const h of shown){const b=document.createElement('button');b.className='rep-card-btn-v5 can-make';b.textContent=h.title;host.appendChild(b);b.onclick=()=>preview(h)}pv.querySelector('.rep-close-v5').onclick=()=>pv.innerHTML=''};const preview=async h=>{pv.innerHTML='<div class="preview-card">🔎 선택한 대상을 확인하고 있어요…</div>';let exact=null;try{exact=await v23ExactSelectedSnapshot(h.title,section)}catch(e){};let found=exact?{desc:exact.desc}:null;if(!found&&h.summary?.text&&h.catScore>0)found={desc:h.summary.text.split(/(?<=[.!?。！？])\s+/).slice(0,4).join(' ')};if(!found){pv.innerHTML='<div class="preview-card"><b>이 카테고리의 항목으로 충분히 확인하지 못했습니다.</b><p>비슷한 이름은 보여드리지만, 정확한 대상을 확인하지 못한 카드는 억지로 만들지 않습니다.</p><button class="v22-back">← 다른 후보 보기</button></div>';pv.querySelector('.v22-back').onclick=renderList;return}let photo=exact?.photo||'';pv.innerHTML=`<div class="preview-card"><h3>${esc(h.title)}</h3><p>${esc(found.desc)}</p>${photo?`<div class="v3-photo-choices"><img src="${esc(photo)}" alt=""></div>`:''}<div class="preview-actions"><button class="v22-back">← 다른 후보 보기</button><button class="v18-manual-save">⭐ 이 항목 추가</button><button class="rep-close-v5">닫기</button></div></div>`;pv.querySelector('.v22-back').onclick=renderList;pv.querySelector('.rep-close-v5').onclick=()=>pv.innerHTML='';pv.querySelector('.v18-manual-save').onclick=async()=>{const a=getCustom(section);if(hasIdentity(h.title,a))return alert('이미 같은 항목이 있습니다.');const item={id:newItemId(),name:h.title,desc:found.desc,emoji:'⭐',source:'manual',photoVerified:!!photo,photoRemote:photo,entityId:String(exact?.entityId||''),entityTitle:String(exact?.title||h.title),pageId:exact?.pageId==null?'':String(exact.pageId)};try{setCustom(section,[...a,item])}catch(e){return alert('카드 저장 중 오류가 발생했습니다.')}pv.innerHTML='';await renderSection(section);await renderRepresentativeCardButtonsV5(section);v16MarkRegisteredInPlace(section,h.title);v22ScrollToSection(section)}};renderList()}
 function manualRepresentative(section,name){
  // "자동 카드 불가" means the strict automatic gate failed, not that the name is unknown.
  // Use assisted search instead of silently creating a manual card.
@@ -2273,6 +2213,7 @@ async function v16RunQueue(section){
     try{r=await precheckRepresentative(section,choice.display)}catch(e){}
    }
    row.pending=false;row.ok=!!r?.ok;row.verified=r?.verified||null;
+   v26RefreshOverviewRep(section);
    const panel=document.getElementById(section)?.querySelector('.rep-card-panel-v5');
    if(panel && panel.dataset.country===st.country){v16PaintRow(section,row,panel);v16PaintStatus(section)}
    await new Promise(res=>setTimeout(res,60));
@@ -2280,111 +2221,30 @@ async function v16RunQueue(section){
   st.finished=true;
  }finally{st.running=false;v16PaintStatus(section)}
 }
-// ===== V44 TRUE REPRESENTATIVE SELECTION: V3 CHOOSES BEFORE DISPLAY =====
-const V44_FINAL_NS='magic_v44_final_';
-const V44_SESSION=new Map();
-// These are candidate pools, NOT representative lists.  The final representative names are selected only after V3 verification.
-const V44_EXTRA_CANDIDATES={
- CN:{
-  fruit:['망고','수박','감','자몽','키위'],
-  food:['월병','완탕','차오몐','마라탕','훙사오러우','춘권','딴딴면'],
-  animals:['동물 — 대왕판다','동물 — 티베트영양','동물 — 붉은관두루미','동물 — 아시아코끼리','식물 — 연꽃','식물 — 소나무','식물 — 국화','식물 — 목련'],
-  places:['계림','구채구','포탈라궁','상하이 와이탄','룽먼 석굴','러산 대불','우이산'],
-  culture:['중국 무술','등불 축제','중국 도자기','종이 공예','전지 공예','중국 전통음악'],
-  singers:['덩리쥔','왕페이','주걸륜','리젠','화천위'],
-  athletes:['류샹 — 육상','린단 — 배드민턴','리나 — 테니스','쑤빙톈 — 육상','장지커 — 탁구'],
-  people:['노자','맹자','사마천','제갈량','이백','두보','주원장','강희제','마오쩌둥'],
-  art:['《한희재야연도》','《오우도》','《유춘도》','《낙신부도》']
- },
- FR:{
-  fruit:['체리','딸기','무화과','레몬'],food:['에스카르고','프렌치 어니언 수프','카술레','갈레트','밀푀유'],
-  animals:['동물 — 유럽들소','동물 — 샤무아','동물 — 붉은여우','식물 — 올리브나무','식물 — 해바라기','식물 — 너도밤나무'],
-  places:['생트샤펠','퐁피두 센터','오르세 미술관','카르카손','아비뇽 교황청'],culture:['투르 드 프랑스','프랑스 혁명 기념일','프랑스 정원','발레'],
-  singers:['샤를 트레네','조르주 브라상스','줄리에트 그레코','셀린 디옹'],athletes:['티에리 앙리 — 축구','토니 파커 — 농구','마르탱 푸르카드 — 바이애슬론'],
-  people:['샤를 드골','르네 데카르트','클로드 모네','귀스타브 에펠'],art:['《별이 빛나는 밤》','《생라자르역》','《루앙 대성당》']
- }
-};
-function v44Key(section,name){return V44_FINAL_NS+String(COUNTRY||'')+'_'+section+'_'+encodeURIComponent(cardInputName(name))}
-function v44Read(section,name){try{const x=JSON.parse(localStorage.getItem(v44Key(section,name))||'null');return x&&x.desc&&x.photo?x:null}catch(e){return null}}
-function v44Write(section,name,v){if(!v?.desc||!v?.photo)return false;const x={name:cardInputName(name),title:String(v.title||name),entityId:String(v.entityId||''),pageId:v.pageId==null?'':String(v.pageId),desc:String(v.desc).trim(),photo:String(v.photo),sources:Array.isArray(v.sources)?v.sources.slice(0,2):[]};try{localStorage.setItem(v44Key(section,name),JSON.stringify(x));return true}catch(e){v44PurgeSearchCaches();try{localStorage.setItem(v44Key(section,name),JSON.stringify(x));return true}catch(_){return false}}}
-function v44PurgeSearchCaches(){const ps=['magicwand_photo_','place_desc_v30_','rebuilt_','autophoto_','trial_candidates_used_','magic_v13_entity_','magic_v14_entity_','magic_v15_entity_','magic_v16_entity_','magic_v27_entity_','magic_v43_final_'];const del=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&ps.some(p=>k.startsWith(p)))del.push(k)}del.forEach(k=>localStorage.removeItem(k))}
-function v44Country(){return ({ES:'스페인',JP:'일본',US:'미국',CN:'중국',FR:'프랑스',EG:'이집트',BR:'브라질',IN:'인도'})[String(COUNTRY||'')]||''}
-function v44Type(kind,section){return ({food:'음식',fruit:'과일',animal:'동물',plant:'식물',place:'명소',singer:'가수',athlete:'운동선수',person:'역사인물',art:'예술작품'})[kind]||({culture:'문화',animals:'동식물',places:'명소',singers:'가수',athletes:'운동선수',people:'역사인물'})[section]||''}
-function v44Wrong(req,title,desc){const x=(String(title||'')+' '+String(desc||'')).toLowerCase(),c=v44Country();
- if(req.kind==='fruit'&&/가수|배우|인물|음반|노래|singer|actor|album|song/.test(x))return true;
- if(req.kind==='place'&&/화학|화합물|분자|산성|황산염|chemical|compound|molecule|acid|sulfate/.test(x))return true;
- if((req.kind==='animal'||req.kind==='plant')&&/가수|배우|선수|영화|음반|singer|actor|athlete|film|album/.test(x))return true;
- if(['person','singer','athlete'].includes(req.kind)){
-   const wrongCountry={CN:/대한민국|한국의|south korean|korean singer|korean actor/i,FR:/대한민국|한국의|중국의|chinese singer/i,JP:/대한민국|한국의|중국의/i,US:/대한민국|한국의|중국의/i};
-   if(wrongCountry[COUNTRY]?.test(x))return true;
- }
- return false}
-function v44Candidates(section){const base=parseRepNames(repTextFor(section)),extra=V44_EXTRA_CANDIDATES?.[COUNTRY]?.[section]||[],seen=new Set(),out=[];for(const n of [...base,...extra]){const k=cardInputName(n);if(k&&!seen.has(k)){seen.add(k);out.push(n)}}return out}
-async function v44Verify(section,raw){const name=v28RepresentativeName(section,raw),req=v12Request(section,name),saved=v44Read(section,name);if(saved)return saved;const sk=[COUNTRY,section,name].join('|');if(V44_SESSION.has(sk))return V44_SESSION.get(sk);
- let v=null;try{v=await sharedResolve(name,req.kind,section)}catch(e){}
- if(v?.desc&&!v44Wrong(req,v.title||name,v.desc)&&(v.photo||v.photos?.[0])){v.photo=v.photo||v.photos[0];v44Write(section,name,v);V44_SESSION.set(sk,v);return v}
- const qs=[[name,v44Country(),v44Type(req.kind,section)].filter(Boolean).join(' '),[name,v44Type(req.kind,section)].filter(Boolean).join(' ')];let best=null;
- for(const q of qs){try{const u='https://ko.wikipedia.org/w/api.php?action=query&list=search&srsearch='+encodeURIComponent(q)+'&srlimit=7&format=json&origin=*';const r=await fetch(u);if(!r.ok)continue;const j=await r.json();for(const h of j.query?.search||[]){let s=null;try{s=await wikiSummaryByTitle(h.title,'ko')}catch(e){}const d=String(s?.text||s?.description||'').replace(/\\s+/g,' ').trim();if(d.length<45||v44Wrong(req,h.title,d))continue;const sem=v37SectionSemanticScore(section,h.title,d);if(sem<3)continue;let score=sem+identityScore(name,h.title);if(d.includes(v44Country()))score+=4;if(d.includes(v44Type(req.kind,section)))score+=3;if(!best||score>best.score)best={title:h.title,desc:d,score}}}catch(e){}if(best&&best.score>=11)break}
- if(best){try{const pg=await sharedPage(best.title);if(pg){const d=String(pg.extract||best.desc).replace(/\\s+/g,' ').trim(),ph=pg.thumbnail?.source||'';if(d.length>=45&&!v44Wrong(req,pg.title,d)&&ph&&v13PhotoOkay(ph,pg.title,req.kind)&&v14PhotoIntentOkay(section,name,ph,pg.title)){v={name,title:pg.title,entityId:pg.pageprops?.wikibase_item||'',pageId:pg.pageid||'',desc:v13CardDescription(d,name,req.kind),photo:ph,photos:[ph],sources:['V44 대표선정 V3검증'],score:best.score};v44Write(section,name,v);V44_SESSION.set(sk,v);return v}}}catch(e){}}
- V44_SESSION.set(sk,null);return null}
-// ===== V45 ONE REPRESENTATIVE LIST =====
-const V45_SELECTED=new Map();
-function v45SelectedKey(section){return [String(COUNTRY||''),section].join('|')}
-function v45FormatNames(section,chosen){
- if(section!=='animals')return chosen.map(x=>cardInputName(x.name)).join(' · ');
- const animals=[],plants=[];
- for(const x of chosen){const raw=String(x.raw||'');const n=cardInputName(x.name);if(/^\s*식물\s*[—\-:]/.test(raw))plants.push(n);else animals.push(n)}
- let out=[];if(animals.length)out.push('동물 — '+animals.join(' · '));if(plants.length)out.push('식물 — '+plants.join(' · '));return out.join(' / ');
-}
-function v45StudyBox(section,study,repBox){
- let old=repBox.querySelector('.v45-study');if(old)old.remove();
- if(!study.length)return;
- const d=document.createElement('div');d.className='v45-study';d.style.marginTop='12px';d.innerHTML='<div style="font-weight:800;margin-bottom:6px">🔎 더 공부해볼 만한 것</div><div class="v45-study-buttons"></div>';
- const h=d.querySelector('.v45-study-buttons');
- for(const x of study.slice(0,8)){const b=document.createElement('button');b.type='button';b.className='rep-card-btn-v5 cannot-make';b.textContent=cardInputName(x.name);b.onclick=()=>manualRepresentative(section,cardInputName(x.name));h.appendChild(b)}
- repBox.appendChild(d);
-}
-function v45PaintTop(section,chosen,study){
- const sec=document.getElementById(section),rep=sec?.querySelector('.sectionOverview .rep');if(!rep)return;
- rep.innerHTML='<b>대표적으로 알아둘 이름</b><br><span class="v45-final-names"></span>';
- const host=rep.querySelector('.v45-final-names');
- for(let i=0;i<chosen.length;i++){
-  const x=chosen[i],b=document.createElement('button');b.type='button';b.className='v45-name-link';b.textContent=cardInputName(x.name);
-  b.style.cssText='border:0;background:transparent;padding:2px 3px;font:inherit;font-weight:800;text-decoration:underline;text-underline-offset:3px;cursor:pointer';
-  b.onclick=()=>openRepresentativePreview(section,cardInputName(x.name),x.v,sec);
-  host.appendChild(b);if(i<chosen.length-1)host.appendChild(document.createTextNode(' · '));
- }
- v45StudyBox(section,study,rep);
-}
-function v47PaintTop(section,chosen){
- const sec=document.getElementById(section),rep=sec?.querySelector('.sectionOverview .rep');if(!rep)return;
- rep.innerHTML='<b>대표적으로 알아둘 이름</b><br><span class="v47-final-names"></span>';
- const host=rep.querySelector('.v47-final-names');
- for(let i=0;i<chosen.length;i++){const x=chosen[i],b=document.createElement('button');b.type='button';b.className='v45-name-link';b.textContent=cardInputName(x.name);b.style.cssText='border:0;background:transparent;padding:2px 3px;font:inherit;font-weight:800;text-decoration:underline;text-underline-offset:3px;cursor:pointer';b.onclick=()=>openRepresentativePreview(section,cardInputName(x.name),x.v,sec);host.appendChild(b);if(i<chosen.length-1)host.appendChild(document.createTextNode(' · '))}
-}
-async function v47SelectRepresentatives(section){
- const key=v45SelectedKey(section);if(V45_SELECTED.has(key))return V45_SELECTED.get(key);
- const candidates=v44Candidates(section),chosen=[];
- for(const raw of candidates){
-  const name=v28RepresentativeName(section,raw),kind=cardInputKind(section,raw);let v=null;
-  try{v=await sharedResolve(name,kind,section)}catch(e){}
-  const photo=v?.photo||v?.photos?.[0]||'';
-  if(v?.desc&&photo){v.photo=photo;chosen.push({raw,name,v})}
-  await new Promise(r=>setTimeout(r,20));
- }
- const result={chosen};V45_SELECTED.set(key,result);
- try{v44PurgeSearchCaches()}catch(e){}
- return result;
-}
 async function renderRepresentativeCardButtonsV5(section){
- // V45 deliberately has NO second representative panel.
  const sec=document.getElementById(section);if(!sec)return;
- const old=sec.querySelector('.rep-card-panel-v5');if(old)old.remove();
- const rep=sec.querySelector('.sectionOverview .rep');if(!rep)return;
- rep.innerHTML='<b>대표적으로 알아둘 이름</b><br><span style="opacity:.72">대표카드를 준비하고 있어요…</span>';
- const {chosen}=await v47SelectRepresentatives(section);
- if(String(COUNTRY||'')!==v45SelectedKey(section).split('|')[0])return;
- v47PaintTop(section,chosen);
+ let panel=sec.querySelector('.rep-card-panel-v5');
+ // V17: a section DOM is reused between countries, but its representative panel must never be.
+ if(panel && panel.dataset.country!==String(COUNTRY||'')){panel.remove();panel=null}
+ if(!panel){
+  panel=document.createElement('div');panel.className='rep-card-panel-v5 note';panel.dataset.country=String(COUNTRY||'');
+  panel.innerHTML='<div class="rep-title-v5">⭐ 대표 이름으로 카드 만들기</div><div class="rep-status-v5"></div><div class="rep-card-buttons-v5"></div><div class="rep-preview-v5"></div>';
+  sec.appendChild(panel);
+ }
+ const st=v16State(section),names=parseRepNames(repTextFor(section));
+ for(const name of names){
+  const finalName=v28RepresentativeName(section,name);
+  const req=v12Request(section,finalName);
+  if(!st.rows.has(req.key)){
+   const hasRepAlternatives=finalName!==cardInputName(name)||!!V24_REP_ALTERNATIVES?.[COUNTRY]?.[section]?.[cardInputName(name)];
+   const cached=hasRepAlternatives?null:v15CachedRepresentative(section,finalName);
+   st.rows.set(req.key,{key:req.key,name,pending:!cached,ok:!!cached,verified:cached?.verified||null,resolvedName:finalName});
+  }
+ }
+ // Never clear innerHTML here: existing buttons and preview stay visible.
+ for(const row of st.rows.values())v16PaintRow(section,row,panel);
+ v16PaintStatus(section);
+ v16RunQueue(section); // idempotent: existing job is reused
 }
 function renderAllRepresentativeCardButtonsV5(){
  // Compatibility helper; render visible sections without resetting their state.
@@ -2394,11 +2254,10 @@ const __v5OpenCountry=openCountry;
 openCountry=function(code){
  const r=__v5OpenCountry(code);
  // Let normal section rendering finish; representative panels attach once and keep their jobs.
- setTimeout(()=>{renderCountryOverviews();renderAllRepresentativeCardButtonsV5();/* V43: candidate text stays stable */},80);
+ setTimeout(()=>{renderCountryOverviews();renderAllRepresentativeCardButtonsV5();REP_SECTIONS.forEach(v26RefreshOverviewRep)},80);
  return r;
 };
 
-try{v44PurgeSearchCaches()}catch(e){}
 window.__MAGIC_V7_DIAGNOSTIC={
  engine:'tested V3 core',
  lessonV23:'Fushimi/Yutoku: representative quality tie-break + exact selected-page photo binding',
@@ -2409,6 +2268,68 @@ window.__MAGIC_V7_DIAGNOSTIC={
  fruitOverview:'native COUNTRY_OVERVIEWS array',
  aliasMode:'canonical + reverse alias group',
  availability:'V3 result with description + photo'
+};
+
+// ===== V48 CLEAN V3 REPRESENTATIVES — MAX 12 =====
+// encyclopedia candidates -> original V3 -> success = representative, up to 12.
+// Remaining candidates are shown only as a candidate pool; clicking one uses the existing Search Help.
+const V48_FINAL=new Map();
+
+function v48CandidateNames(section){
+ const ov=v35OverviewData(COUNTRY)?.[section];
+ const raw=Array.isArray(ov)?(ov[2]||''):(ov?.names||'');
+ if(!raw)return [];
+ return parseRepNames(String(raw)).map(x=>v28RepresentativeName(section,x)).filter(Boolean);
+}
+async function v48Select(section){
+ const key=String(COUNTRY||'')+'|'+section;
+ if(V48_FINAL.has(key))return V48_FINAL.get(key);
+ const candidates=v48CandidateNames(section),chosen=[],remaining=[];
+ for(const name of candidates){
+   if(chosen.length>=12){remaining.push(name);continue}
+   const kind=cardInputKind(section,name); let v=null;
+   try{v=await sharedResolve(name,kind,section)}catch(e){}
+   const photo=v?.photo||v?.photos?.[0]||'';
+   if(v?.desc&&photo){v.photo=photo;chosen.push({name,v})}
+   else remaining.push(name);
+ }
+ const result={chosen,remaining}; V48_FINAL.set(key,result); return result;
+}
+function v48Paint(section,result){
+ const sec=document.getElementById(section), rep=sec?.querySelector('.sectionOverview .rep');
+ if(!rep)return;
+ rep.innerHTML='<b>대표적으로 알아둘 이름</b><br><span class="v48-final"></span>';
+ const host=rep.querySelector('.v48-final');
+ result.chosen.forEach((x,i)=>{
+   const b=document.createElement('button'); b.type='button'; b.textContent=cardInputName(x.name);
+   b.style.cssText='border:0;background:transparent;padding:2px 3px;font:inherit;font-weight:800;text-decoration:underline;text-underline-offset:3px;cursor:pointer';
+   b.onclick=()=>openRepresentativePreview(section,cardInputName(x.name),x.v,sec);
+   host.appendChild(b); if(i<result.chosen.length-1)host.appendChild(document.createTextNode(' · '));
+ });
+ let box=sec.querySelector('.v48-candidate-pool');
+ if(!box){box=document.createElement('div');box.className='v48-candidate-pool';rep.insertAdjacentElement('afterend',box)}
+ if(!result.remaining.length){box.innerHTML='';box.style.display='none';return}
+ box.style.display='block';
+ box.style.cssText+=';margin-top:10px;padding:10px 12px;border:1px dashed #cbd5e1;border-radius:12px;background:#fafafa;font-size:.94em;line-height:1.8';
+ box.innerHTML='<b>후보군</b> <span style="font-weight:400">— 더 알아보고 싶으면 눌러서 검색도움으로 확인해 보세요.</span><br>';
+ result.remaining.forEach((name,i)=>{
+   const b=document.createElement('button');b.type='button';b.textContent=cardInputName(name);
+   b.style.cssText='border:0;background:transparent;padding:2px 3px;font:inherit;text-decoration:underline;text-underline-offset:3px;cursor:pointer';
+   b.onclick=()=>manualRepresentative(section,cardInputName(name));
+   box.appendChild(b);if(i<result.remaining.length-1)box.appendChild(document.createTextNode(' · '));
+ });
+}
+async function v48Refresh(section){
+ const r=await v48Select(section); v48Paint(section,r); return r;
+}
+
+// Hook only after the original renderer has done its normal work.
+// Original Add Item / Search Help remains untouched.
+const V48_ORIGINAL_RENDER=renderRepresentativeCardButtonsV5;
+renderRepresentativeCardButtonsV5=async function(section){
+ const out=await V48_ORIGINAL_RENDER(section);
+ try{await v48Refresh(section)}catch(e){console.warn('[V48]',e)}
+ return out;
 };
 </script>
 <div id="v21Modal" class="v21-modal hidden" role="dialog" aria-modal="true"><div class="v21-big"><div id="v21BigContent"></div><div class="v21-big-nav"><button id="v21Prev">← 이전</button><button id="v21Close">작게 보기</button><button id="v21Next">다음 →</button></div></div></div></body></html>
