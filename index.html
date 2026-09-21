@@ -1980,6 +1980,28 @@ function v16PaintStatus(section){
  status.textContent=(pending?`처음 한 번만 확인 중 ${done}/${rows.length} · ● 가능 ${good}개 · ✓ 등록 ${reg}개`:
  `확인 완료 · ● 카드 만들기 가능 ${good}개 · ✓ 등록됨 ${reg}개 · ○ 검색도움 ${rows.length-good-reg}개`)+` · 저장 ${si.mb}MB`;
 }
+
+// ===== V26 SAFE SINGLE-SOURCE DISPLAY (built from V24, not V25) =====
+// The representative card panel remains the V24 known-good renderer.
+// Once V24 resolves a representative row, only the text inside the overview's representative line is refreshed.
+function v26FinalRepText(section){
+ const ov=COUNTRY_OVERVIEWS?.[COUNTRY]?.[section];
+ const raw=Array.isArray(ov)?(ov[2]||''):(ov?.names||'');
+ if(!raw)return '';
+ const st=v16State(section);
+ let out=String(raw);
+ for(const row of st.rows.values()){
+   const original=cardInputName(row.name), finalName=cardInputName(row.resolvedName||row.name);
+   if(original&&finalName&&original!==finalName)out=out.replace(original,finalName);
+ }
+ return out;
+}
+function v26RefreshOverviewRep(section){
+ const sec=document.getElementById(section);if(!sec)return;
+ const rep=sec.querySelector('.sectionOverview .rep');if(!rep)return;
+ const txt=v26FinalRepText(section);if(!txt)return;
+ rep.innerHTML='<b>대표적으로 알아둘 이름</b><br>'+txt;
+}
 function v16PaintRow(section,row,panel){
  const shown=cardInputName(row.resolvedName||row.name), original=cardInputName(row.name);
  const existing=getCustom(section), registered=hasIdentity(shown,existing);
@@ -2020,7 +2042,7 @@ async function v16RunQueue(section){
     try{r=await precheckRepresentative(section,choice.display)}catch(e){}
    }
    row.pending=false;row.ok=!!r?.ok;row.verified=r?.verified||null;
-   try{await v25SyncOverviewRepresentatives()}catch(e){}
+   v26RefreshOverviewRep(section);
    const panel=document.getElementById(section)?.querySelector('.rep-card-panel-v5');
    if(panel && panel.dataset.country===st.country){v16PaintRow(section,row,panel);v16PaintStatus(section)}
    await new Promise(res=>setTimeout(res,60));
@@ -2028,36 +2050,7 @@ async function v16RunQueue(section){
   st.finished=true;
  }finally{st.running=false;v16PaintStatus(section)}
 }
-async 
-// ===== V25 UNIFIED REPRESENTATIVE DISPLAY =====
-// Keep V24 decision internal, but make the encyclopedia overview and card-maker show the same final name.
-async function v25ResolvedRepText(section,text){
- const src=String(text||''), parsed=parseRepNames(src);
- if(!parsed.length)return src;
- let out=src;
- for(const raw of parsed){
-   const original=cardInputName(raw);
-   let choice=null;try{choice=await v24ResolveRepresentative(section,raw)}catch(e){}
-   const finalName=choice?.display||original;
-   if(finalName!==original){
-     // Replace only the exact representative token in the visible encyclopedia text.
-     out=out.replace(original,finalName);
-   }
- }
- return out;
-}
-async function v25SyncOverviewRepresentatives(){
- const data=COUNTRY_OVERVIEWS?.[COUNTRY];if(!data)return;
- for(const section of REP_SECTIONS){
-   const sec=document.getElementById(section);if(!sec)continue;
-   const box=sec.querySelector('.sectionOverview .rep');if(!box)continue;
-   const d=data[section];if(!d)continue;
-   const raw=Array.isArray(d)?(d[2]||''):(d.names||'');
-   const finalText=await v25ResolvedRepText(section,raw);
-   box.innerHTML='<b>대표적으로 알아둘 이름</b><br>'+finalText;
- }
-}
-function renderRepresentativeCardButtonsV5(section){
+async function renderRepresentativeCardButtonsV5(section){
  const sec=document.getElementById(section);if(!sec)return;
  let panel=sec.querySelector('.rep-card-panel-v5');
  // V17: a section DOM is reused between countries, but its representative panel must never be.
@@ -2089,7 +2082,7 @@ const __v5OpenCountry=openCountry;
 openCountry=function(code){
  const r=__v5OpenCountry(code);
  // Let normal section rendering finish; representative panels attach once and keep their jobs.
- setTimeout(async()=>{renderCountryOverviews();renderAllRepresentativeCardButtonsV5();try{await v25SyncOverviewRepresentatives()}catch(e){}},80);
+ setTimeout(()=>{renderCountryOverviews();renderAllRepresentativeCardButtonsV5();REP_SECTIONS.forEach(v26RefreshOverviewRep)},80);
  return r;
 };
 
@@ -2097,7 +2090,7 @@ window.__MAGIC_V7_DIAGNOSTIC={
  engine:'tested V3 core',
  lessonV23:'Fushimi/Yutoku: representative quality tie-break + exact selected-page photo binding',
  representativeV24:'upstream comparable-candidate selection before V3',
- representativeV25:'final representative unified in overview + card maker; change reason internal only',
+ representativeV26:'safe single-source display built on V24; card panel lifecycle untouched',
  fruitOverview:'native COUNTRY_OVERVIEWS array',
  aliasMode:'canonical + reverse alias group',
  availability:'V3 result with description + photo'
