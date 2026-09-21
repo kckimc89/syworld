@@ -108,8 +108,8 @@ body.view-cards #detail .cards .item>.actions{display:none}
  .item .photo-area{height:200px!important;min-height:200px!important}
 }
 </style>
-<style id="v13-guard">.item img[src=''],.item img:not([src]){display:none!important}</style></head><body>
-<div id="ns5BuildBadge" style="position:fixed;left:10px;bottom:10px;z-index:13050;background:#1f3f68;color:white;border-radius:14px;padding:9px 12px;font:900 13px/1.2 system-ui;box-shadow:0 3px 12px #0003">MASTER V28 · NS5B<br><span style="font-weight:600;font-size:11px">새 후보 생성판</span></div>
+<style id="v13-guard">.item img[src=''],.item img:not([src]){display:none!important}</style></head><body><div id="ns5cTopBanner" style="position:sticky;top:0;z-index:20000;background:#173f73;color:white;text-align:center;padding:10px 8px;font:900 17px system-ui;box-shadow:0 2px 8px #0003">✅ MASTER V28 · NS5C 배포 확인판</div>
+<div id="ns5BuildBadge" style="position:fixed;left:10px;bottom:10px;z-index:13050;background:#1f3f68;color:white;border-radius:14px;padding:9px 12px;font:900 13px/1.2 system-ui;box-shadow:0 3px 12px #0003">MASTER V28 · NS5C<br><span style="font-weight:600;font-size:11px">배포 확인판 · 이 표시가 보여야 정상</span></div>
 
 <style>
 #kbBtn{display:none!important;position:fixed;right:14px;bottom:14px;z-index:12020;border:0;border-radius:999px;padding:13px 17px;background:#244b76;color:#fff;font-weight:900;box-shadow:0 4px 14px #0003}
@@ -2270,7 +2270,7 @@ function ns5AttachFreshPanel(section){
  const sec=document.getElementById(section); if(!sec)return;
  let p=sec.querySelector('.ns5-fresh-panel'); if(p)return;
  p=document.createElement('div'); p.className='ns5-fresh-panel rep-card-panel-v5 note';
- p.innerHTML='<div class="rep-title-v5">🪄 새 백과구조 NS5B — 기존 목록 밖에서 새로 찾기</div><div style="margin:6px 0">카테고리 설명을 바탕으로 웹에서 새 대상을 찾고, 기존 대표이름과 겹치는 항목을 버린 뒤 V3로 설명·사진을 검증합니다.</div><button type="button" class="add-btn ns5-run">✨ 새로운 후보 찾기</button><div class="ns5-status" style="margin:8px 0;font-weight:800"></div><div class="ns5-list rep-card-buttons-v5"></div><div class="rep-preview-v5"></div>';
+ p.innerHTML='<div class="rep-title-v5">🪄 새 백과구조 NS5C — 기존 목록 밖에서 새로 찾기</div><div style="margin:6px 0">카테고리 설명을 바탕으로 웹에서 새 대상을 찾고, 기존 대표이름과 겹치는 항목을 버린 뒤 V3로 설명·사진을 검증합니다.</div><button type="button" class="add-btn ns5-run">✨ 새로운 후보 찾기</button><div class="ns5-status" style="margin:8px 0;font-weight:800"></div><div class="ns5-list rep-card-buttons-v5"></div><div class="rep-preview-v5"></div>';
  sec.appendChild(p); p.querySelector('.ns5-run').onclick=()=>ns5DiscoverAndVerify(section,p);
 }
 function ns5AttachAll(){REP_SECTIONS.forEach(ns5AttachFreshPanel)}
